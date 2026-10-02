@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#111827">
+    <title>Dashboard | Vendora — Smart Shop Manager</title>
+    <meta name="description"
+        content="Vendora is a professional smart shop management system for tracking sales, inventory, and analytics.">
+    <meta name="keywords" content="shop manager, inventory tracking, business analytics, sales system">
+    <link rel="stylesheet" href="css/main.css">
+    <!-- Online Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <div id="app" class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <span class="icon">🚀</span>
+                    <span>Business Corner</span>
+                </div>
+                <!-- Sidebar Toggle for closing/desktop -->
+                <button class="mobile-toggle sidebar-toggle-btn" title="Toggle Navigation">
+                    <i data-lucide="menu"></i>
+                </button>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="#dashboard" class="nav-item active" data-view="dashboard">
+                    <i data-lucide="layout-dashboard" class="icon"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#inventory" class="nav-item" data-view="inventory">
+                    <i data-lucide="package" class="icon"></i>
+                    <span>Inventory</span>
+                </a>
+                <a href="#add-product" class="nav-item" data-view="add-product">
+                    <i data-lucide="package-plus" class="icon"></i>
+                    <span>Add Products</span>
+                </a>
+                <a href="#sell" class="nav-item" data-view="sell">
+                    <i data-lucide="shopping-cart" class="icon"></i>
+                    <span>Sell</span>
+                </a>
+                <a href="#purchases" class="nav-item" data-view="purchases">
+                    <i data-lucide="truck" class="icon"></i>
+                    <span>Purchases</span>
+                </a>
+                <a href="#debts" class="nav-item" data-view="debts">
+                    <i data-lucide="file-warning" class="icon"></i>
+                    <span>Debt Manager</span>
+                </a>
+                <a href="#analytics" class="nav-item" data-view="analytics">
+                    <i data-lucide="bar-chart-3" class="icon"></i>
+                    <span>AI Analytics</span>
+                </a>
+                <div class="nav-divider" style="height: 1px; background: rgba(255,255,255,0.1); margin: 16px 0;"></div>
+                <a href="#settings" class="nav-item" data-view="settings">
+                    <!-- Added Standard Lucide name + Hardcoded SVG Fallback for visibility -->
+                    <i data-lucide="settings" class="icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            class="lucide lucide-settings">
+                            <path
+                                d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                            <circle cx="12" cy="12" r="3" />
+                        </svg>
+                    </i>
+                    <span>Settings</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-profile" id="user-profile-summary">
+                    <img id="sidebar-user-avatar" class="avatar" src="https://ui-avatars.com/api/?name=User" alt="User">
+                    <div class="user-info" style="flex: 1;">
+                        <div class="user-name" id="sidebar-user-name">Guest</div>
+                        <div class="workspace-name" id="sidebar-user-role">Shop Manager</div>
+                    </div>
+                </div>
+                <div
+                    style="margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: rgba(255,255,255,0.3);">
+                    <span>v2.4.1 (Stable)</span>
+                    <a href="#settings" style="color: inherit; text-decoration: none;">&copy; 2026 Vendora</a>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-layout">
+            <header class="top-bar">
+                <div class="page-header-info">
+                    <button class="icon-btn hide-desktop sidebar-toggle-btn" title="Open Menu">
+                        <i data-lucide="menu"></i>
+                    </button>
+                    <h1 class="page-title" id="page-title">Dashboard</h1>
+                </div>
+                <div class="top-actions">
+                    <div class="search-container">
+                        <input type="text" id="global-search-input" placeholder="Search everything..."
+                            class="search-input">
+                    </div>
+                    <button class="icon-btn" id="sync-btn" title="Sync with Cloud">
+                        <i data-lucide="refresh-cw" class="icon"></i>
+                    </button>
+                    <button class="icon-btn" id="logout-btn" title="Logout">
+                        <i data-lucide="log-out" class="icon"></i>
+                    </button>
+                </div>
+            </header>
+
+            <div id="content-workspace" class="content-workspace">
+                <!-- Views injected here -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Auth Overlay -->
+    <div id="login-overlay" class="auth-overlay hidden"></div>
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+    <!-- Cache Busted Script Inclusion -->
+    <script type="module" src="js/app.js"></script>
+</body>
+
+</html>

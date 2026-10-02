@@ -1,0 +1,559 @@
+/* ════════════════════════════════════════════════════════════
+   VENDORA — Layout & Responsive System
+   Supports: 360px phones → 4K desktops, landscape + portrait
+   ════════════════════════════════════════════════════════════ */
+
+/* ─── App Shell ───────────────────────────────────────────── */
+#app {
+    display: grid;
+    grid-template-columns: var(--sidebar-width) 1fr;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* ─── Sidebar Overlay (mobile backdrop) ─────────────────────── */
+.sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 40;
+    display: none;
+    backdrop-filter: blur(4px);
+}
+
+.sidebar-overlay.active {
+    display: block;
+}
+
+/* ─── Sidebar ─────────────────────────────────────────────── */
+.sidebar {
+    background: var(--bg-sidebar);
+    color: var(--text-on-dark);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.08);
+    z-index: 20;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-header {
+    height: var(--header-height);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    flex-shrink: 0;
+}
+
+.logo {
+    font-size: 18px;
+    font-weight: 700;
+    color: white;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sidebar-nav {
+    flex: 1;
+    padding: 16px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+
+.sidebar-nav::-webkit-scrollbar {
+    display: none;
+}
+
+.nav-divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.06);
+    margin: 8px 12px;
+    flex-shrink: 0;
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 16px;
+    color: #9CA3AF;
+    text-decoration: none;
+    border-radius: var(--radius-md);
+    transition: var(--transition);
+    font-weight: 500;
+    font-size: 14px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.nav-item:hover {
+    background: rgba(255, 255, 255, 0.07);
+    color: white;
+}
+
+.nav-item.active {
+    background: var(--primary-color);
+    color: white;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.nav-item .icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+.sidebar-footer {
+    padding: 16px 20px;
+    background: rgba(0, 0, 0, 0.2);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    flex-shrink: 0;
+}
+
+.user-profile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.avatar {
+    width: 36px;
+    height: 36px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+    object-fit: cover;
+}
+
+.user-info {
+    min-width: 0;
+    overflow: hidden;
+}
+
+.user-info .user-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: white;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.user-info .workspace-name {
+    font-size: 12px;
+    color: #9CA3AF;
+}
+
+/* ─── Main Layout ─────────────────────────────────────────── */
+.main-layout {
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-body);
+    height: 100vh;
+    overflow: hidden;
+    min-width: 0;
+}
+
+.top-bar {
+    height: var(--header-height);
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border-color);
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 10;
+    flex-shrink: 0;
+    gap: 12px;
+}
+
+.page-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-main);
+    white-space: nowrap;
+}
+
+.page-header-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.top-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.content-workspace {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 28px 32px;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* ─── Animations ────────────────────────────────────────────── */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in {
+    animation: fadeIn 0.4s ease-out forwards;
+}
+
+/* ─── Toggle Buttons ────────────────────────────────────────── */
+.mobile-toggle {
+    background: transparent;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mobile-toggle:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-toggle-btn {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: inherit;
+    padding: 8px;
+    border-radius: var(--radius-md);
+}
+
+/* ─── Dashboard Grids ────────────────────────────────────────── */
+.dash-pulse-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+    margin-bottom: 28px;
+}
+
+.dash-main-grid {
+    display: grid;
+    grid-template-columns: 260px 1fr 300px;
+    gap: 24px;
+}
+
+/* ─── Login Overlay ──────────────────────────────────────────── */
+#login-overlay {
+    background: rgba(17, 24, 39, 0.95) !important;
+    backdrop-filter: blur(8px);
+    transition: opacity 0.3s ease;
+}
+
+#login-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+    z-index: -1;
+}
+
+/* ─── Visibility helpers ─────────────────────────────────────── */
+@media (min-width: 1025px) {
+    .hide-desktop {
+        display: none !important;
+    }
+}
+
+@media (max-width: 1024px) {
+    .hide-mobile {
+        display: none !important;
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   RESPONSIVE BREAKPOINTS
+   ══════════════════════════════════════════════════════════════ */
+
+/* ─── Large Desktop ≥ 1400px ─────────────────────────────── */
+@media (min-width: 1400px) {
+    .dash-main-grid {
+        grid-template-columns: 280px 1fr 340px;
+    }
+}
+
+/* ─── Medium Desktop 1025px – 1399px ─────────────────────── */
+@media (min-width: 1025px) and (max-width: 1399px) {
+    .dash-main-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .dash-main-grid>.dash-shortcuts {
+        grid-column: span 2;
+    }
+}
+
+/* ─── Desktop sidebar collapse ─────────────────────────────── */
+@media (min-width: 1025px) {
+    #app.sidebar-collapsed {
+        grid-template-columns: 0 1fr;
+    }
+
+    #app.sidebar-collapsed .sidebar {
+        transform: translateX(-100%);
+        pointer-events: none;
+    }
+}
+
+/* ─── Tablet & Mobile ≤ 1024px ───────────────────────────── */
+@media (max-width: 1024px) {
+    #app {
+        grid-template-columns: 1fr;
+    }
+
+    .sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 270px;
+        transform: translateX(-100%);
+        z-index: 100;
+    }
+
+    .sidebar.active {
+        transform: translateX(0);
+        box-shadow: 8px 0 32px rgba(0, 0, 0, 0.3);
+    }
+
+    .top-bar {
+        padding: 0 16px;
+        gap: 8px;
+    }
+
+    .content-workspace {
+        padding: 20px 16px;
+    }
+
+    .dash-pulse-grid {
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 14px;
+    }
+
+    .dash-main-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+
+    .dash-main-grid>.dash-shortcuts {
+        grid-column: span 2;
+    }
+
+    .top-bar .search-input {
+        width: 160px;
+    }
+}
+
+/* ─── Small Tablet ≤ 900px ───────────────────────────────── */
+@media (max-width: 900px) {
+    .dash-main-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .dash-main-grid>* {
+        grid-column: span 1;
+    }
+
+    .analytics-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .data-table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+}
+
+/* ─── Mobile Phone ≤ 600px ───────────────────────────────── */
+@media (max-width: 600px) {
+    :root {
+        --header-height: 56px;
+    }
+
+    .top-bar {
+        padding: 0 12px;
+        gap: 6px;
+    }
+
+    .content-workspace {
+        padding: 14px 12px;
+    }
+
+    .page-title {
+        font-size: 16px;
+    }
+
+    /* Hide search bar — save horizontal space */
+    .top-bar .search-input {
+        display: none;
+    }
+
+    /* POS: vertical stack */
+    .sales-container {
+        grid-template-columns: 1fr;
+        height: auto;
+        overflow-y: visible;
+    }
+
+    /* Payment buttons: 2 columns */
+    .payment-methods {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 6px;
+    }
+
+    /* Cards */
+    .card {
+        padding: 16px;
+    }
+
+    /* Stat cards: 2 per row */
+    .dash-pulse-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+
+    /* Debt form stack */
+    #debt-form-container {
+        padding: 16px !important;
+    }
+
+    /* Page header: stack */
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .page-header>div:last-child {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+
+    /* Product grid: 2 per row */
+    .sales-product-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
+    /* Auth card */
+    .auth-card {
+        width: 95vw;
+        max-width: 95vw;
+        padding: 24px 18px;
+    }
+
+    /* Popup modals */
+    .auth-overlay>.auth-card,
+    div[style*="position: fixed"]>.card.fade-in {
+        width: 92vw !important;
+        max-width: 92vw !important;
+    }
+
+    /* Table compact */
+    .data-table td,
+    .data-table th {
+        padding: 10px 10px;
+        font-size: 12px;
+    }
+
+    /* Settings */
+    div[style*="grid-template-columns: repeat(auto-fit, minmax(350px"] {
+        grid-template-columns: 1fr !important;
+    }
+
+    .top-actions {
+        gap: 4px;
+    }
+
+    .icon-btn {
+        padding: 6px;
+    }
+
+    .sidebar-footer {
+        padding: 12px 14px;
+    }
+}
+
+/* ─── Very Small Phone ≤ 360px ───────────────────────────── */
+@media (max-width: 360px) {
+    .dash-pulse-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .sales-product-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .nav-item {
+        padding: 10px 12px;
+        font-size: 13px;
+    }
+}
+
+/* ─── Landscape phone (short screens) ────────────────────── */
+@media (max-height: 500px) and (orientation: landscape) {
+    .content-workspace {
+        padding: 8px 14px;
+    }
+
+    .sidebar {
+        width: 230px;
+    }
+
+    .sidebar-nav {
+        padding: 6px 8px;
+        gap: 1px;
+    }
+
+    .nav-item {
+        padding: 8px 12px;
+        font-size: 13px;
+    }
+
+    .auth-card {
+        padding: 16px 20px;
+        overflow-y: auto;
+        max-height: 95vh;
+    }
+
+    .auth-header {
+        margin-bottom: 16px;
+    }
+}
