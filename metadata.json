@@ -1,0 +1,7 @@
+{
+  "name": "Vendora — Smart Shop Manager",
+  "description": "Vendora is a professional smart shop management system for tracking sales, inventory, and analytics.",
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

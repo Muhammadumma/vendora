@@ -359,7 +359,8 @@
     }
 
     .content-workspace {
-        padding: 20px 16px;
+        padding: 16px 16px calc(76px + env(safe-area-inset-bottom, 0px));
+        overflow-x: hidden;
     }
 
     .dash-pulse-grid {
@@ -413,7 +414,16 @@
     }
 
     .content-workspace {
-        padding: 14px 12px;
+        padding: 12px 10px calc(80px + env(safe-area-inset-bottom, 0px));
+        overflow-x: hidden;
+    }
+
+    .sell-view-page {
+        padding-bottom: calc(140px + env(safe-area-inset-bottom, 0px)) !important;
+    }
+
+    .add-product-page {
+        padding-bottom: calc(130px + env(safe-area-inset-bottom, 0px)) !important;
     }
 
     .page-title {
