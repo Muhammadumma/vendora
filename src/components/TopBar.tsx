@@ -50,7 +50,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                 {/* App Brand Icon - WhatsApp size (38px) */}
                 <div
                     className="app-brand-icon-wrapper"
-                    title="Vendora — Stock Control Hub"
+                    title="Royalvazier Textile — Kantin Kwari Kano"
                     style={{
                         width: '38px',
                         height: '38px',

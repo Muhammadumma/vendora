@@ -146,116 +146,206 @@ export const Utils = {
     },
 
     generateReceiptPrintContent(sale: any, settings?: any): string {
-        const storeSettings = settings || {
-            businessName: 'VENDORA RETAIL',
-            businessAddress: '123 Commercial Avenue, Lagos, Nigeria',
-            businessPhone: '+234 800 000 0000',
-            receiptFooter: 'Thank you for your patronage! Goods bought in good condition are not returnable.'
-        };
+        let storeSettings = settings;
+        if (!storeSettings && typeof window !== 'undefined') {
+            try {
+                storeSettings = JSON.parse(localStorage.getItem('bc_settings') || '{}');
+            } catch {}
+        }
+        storeSettings = storeSettings || {};
 
-        const storeName = storeSettings.businessName || 'ROYALVAZIER TEXTILE';
-        const words = storeName.trim().split(/\s+/).filter(Boolean);
-        const initials = words.length >= 2
-            ? `${words[0][0]}${words[1][0]}`.toUpperCase()
-            : (words[0] ? words[0].substring(0, 2).toUpperCase() : 'RV');
+        const storeName = storeSettings.businessName || 'Royalvazier Textile';
+        const parentCompany = storeSettings.parentCompany || 'Royalvazier Global Services Ltd';
+        const rcNumber = storeSettings.rcNumber || 'RC9636293';
+        const address = storeSettings.businessAddress || 'No:15 Gidan Baba Dan Baffa Beside Jumma’at Mosque opp. Ganduje Building Kantin Kwari market Kano';
+        const phone = storeSettings.businessPhone || '+2348137098824 / +2349060042040';
+        const logoUrl = storeSettings.businessLogo || '/royalvazier-logo.png';
 
         const dateObj = sale.date ? new Date(sale.date) : new Date();
-        const day = dateObj.getDate().toString().padStart(2, '0');
-        const month = dateObj.toLocaleString('en-US', { month: 'short' }).toUpperCase();
-        const year = dateObj.getFullYear();
-        const formattedDate = `${day} · ${month} · ${year}`;
-        const formattedTime = dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+        const formattedDate = dateObj.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+        });
+        const formattedTime = dateObj.toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+        });
 
         const items = sale.items || [];
-        const itemsRows = items.map((it: any, idx: number) => {
+        const itemsHtml = items.length > 0 ? items.map((it: any, idx: number) => {
             const lineTotal = (Number(it.price) || 0) * (Number(it.qty) || 1);
-            const itemCode = it.productId || it.sku || `RVT-${String(idx + 1).padStart(3, '0')}`;
             return `
-                <div class="row it">
-                    <div>
-                        <div class="a">${it.name || 'Item'}</div>
-                        <div class="s">${itemCode} · ₦${Number(it.price || 0).toLocaleString()}</div>
+                <div style="display:grid;grid-template-columns:1fr 50px 85px;gap:8px;padding:7px 0;align-items:center;border-bottom:${idx === items.length - 1 ? 'none' : '1px dashed #F1F5F9'};">
+                    <div style="text-align:left;">
+                        <div style="font-size:12.5px;font-weight:700;color:#0F172A;line-height:1.3;">${it.name || 'Quality Fabric'}</div>
+                        <div style="font-size:10.5px;color:#94A3B8;margin-top:1px;">₦${Number(it.price || 0).toLocaleString()} each</div>
                     </div>
-                    <div>${it.qty || 1}</div>
-                    <div>₦${lineTotal.toLocaleString()}</div>
+                    <div style="text-align:center;font-size:12.5px;font-weight:700;color:#334155;">${it.qty || 1}</div>
+                    <div style="text-align:right;font-size:12.5px;font-weight:800;color:#0F172A;">₦${lineTotal.toLocaleString()}</div>
                 </div>
             `;
-        }).join('');
+        }).join('') : `
+            <div style="display:grid;grid-template-columns:1fr 50px 85px;gap:8px;padding:7px 0;align-items:center;">
+                <div style="text-align:left;"><div style="font-size:12.5px;font-weight:700;color:#0F172A;">Retail Textile Order</div></div>
+                <div style="text-align:center;font-size:12.5px;font-weight:700;">1</div>
+                <div style="text-align:right;font-size:12.5px;font-weight:800;">₦${Number(sale.total || 0).toLocaleString()}</div>
+            </div>
+        `;
 
         const subtotal = Number(sale.subtotal) || Number(sale.total) || 0;
         const vat = Number(sale.vat) || 0;
         const total = Number(sale.total) || 0;
         const discount = subtotal > total ? subtotal - total : 0;
 
-        const isPendingDebt = String(sale.paymentMethod || '').toLowerCase().includes('pending') ||
-                              String(sale.paymentMethod || '').toLowerCase().includes('debt') && !sale.isSettlement;
-        const sealText = isPendingDebt ? 'CREDIT' : 'PAID';
+        const barcodeSvg = Utils.generateBarcodeSVG(sale.id);
 
-        const logoHtml = storeSettings.businessLogo
-            ? `<img src="${storeSettings.businessLogo}" alt="${storeName}" style="width:46px;height:46px;display:block;margin:0 auto 3px;object-fit:contain;border-radius:4px;" />`
-            : `<svg viewBox="0 0 64 64" aria-label="Royal crest" style="width:46px;height:46px;display:block;margin:0 auto 3px;">
-                <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE9A8"/><stop offset=".5" stop-color="#C9A227"/><stop offset="1" stop-color="#8C6A1A"/></linearGradient></defs>
-                <circle cx="32" cy="32" r="30" fill="#0A0A0A" stroke="url(#g)" stroke-width="2"/>
-                <circle cx="32" cy="32" r="25" fill="none" stroke="url(#g)" stroke-width=".6" stroke-dasharray="1.5 2"/>
-                <path d="M19 24l5 4 8-9 8 9 5-4-3 11H22z" fill="url(#g)"/>
-                <text x="32" y="50" text-anchor="middle" font-family="Cinzel,serif" font-weight="700" font-size="14" fill="url(#g)" letter-spacing="1">${initials}</text>
-               </svg>`;
+        const topSerratedPath = "M0,10 L6,0 L12,10 L18,0 L24,10 L30,0 L36,10 L42,0 L48,10 L54,0 L60,10 L66,0 L72,10 L78,0 L84,10 L90,0 L96,10 L102,0 L108,10 L114,0 L120,10 L126,0 L132,10 L138,0 L144,10 L150,0 L156,10 L162,10 L168,0 L174,10 L180,0 L186,10 L192,0 L198,10 L204,0 L210,10 L216,0 L222,10 L228,0 L234,10 L240,0 L246,10 L252,0 L258,10 L264,0 L270,10 L276,0 L282,10 L288,0 L294,10 L300,0 L306,10 L312,0 L318,10 L324,0 L330,10 L336,0 L342,10 L348,0 L354,10 L360,10 Z";
+        const bottomSerratedPath = "M0,0 L6,10 L12,0 L18,10 L24,0 L30,10 L36,0 L42,10 L48,0 L54,10 L60,0 L66,10 L72,0 L78,10 L84,0 L90,10 L96,0 L102,10 L108,0 L114,10 L120,0 L126,10 L132,0 L138,10 L144,0 L150,10 L156,0 L162,10 L168,0 L174,10 L180,0 L186,10 L192,0 L198,10 L204,0 L210,10 L216,0 L222,10 L228,0 L234,10 L240,0 L246,10 L252,0 L258,10 L264,0 L270,10 L276,0 L282,10 L288,0 L294,10 L300,0 L306,10 L312,0 L318,10 L324,0 L330,10 L336,0 L342,10 L348,0 L354,10 L360,0 Z";
 
-        const cashierName = 'Authorized Signatory';
+        const isDebt = String(sale.paymentMethod || '').toLowerCase().includes('debt') && !sale.isSettlement;
+        const formattedDueDate = sale.dueDate 
+            ? new Date(sale.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+            : 'In 7 days';
+
+        const displayTitle = sale.isSettlement 
+            ? 'Debt Settlement Confirmed!' 
+            : isDebt 
+                ? 'Credit Sale Issued' 
+                : 'Your order is confirmed!';
+
+        const displaySubtitle = sale.isSettlement
+            ? 'Debt Balance Settled & Cleared'
+            : isDebt
+                ? `Payment Pending · Due: ${formattedDueDate}`
+                : 'Official Sales Receipt & Proof of Payment';
 
         return `
-            <div class="wrap">
-                <div class="receipt">
-                    <div class="frame">
-                        <span class="c1"></span><span class="c2"></span>
+            <div class="ticket-outer-wrapper" style="width:100%;max-width:380px;margin:0 auto;filter:drop-shadow(0 18px 30px rgba(0,0,0,0.12));">
+                <!-- Top Serrated Edge -->
+                <div style="width:100%;height:10px;line-height:0;overflow:hidden;">
+                    <svg viewBox="0 0 360 10" preserveAspectRatio="none" style="width:100%;height:10px;display:block;">
+                        <path d="${topSerratedPath}" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="0.75" />
+                    </svg>
+                </div>
 
-                        <div class="head">
-                            ${logoHtml}
-                            <div class="brand">${storeName}</div>
-                            <div class="sub">EXCLUSIVE RETAIL</div>
+                <!-- Main Receipt Body -->
+                <div class="ticket-paper-content" style="background:#FFFFFF;padding:16px 20px 18px;font-family:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif;color:#0F172A;border-left:1px solid #E2E8F0;border-right:1px solid #E2E8F0;">
+                    <!-- Top Meta Bar -->
+                    <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#94A3B8;font-weight:600;">
+                        <span style="font-family:'JetBrains Mono',monospace;letter-spacing:0.02em;">Order: #${String(sale.id).replace(/^SALE-/, '')}</span>
+                        <span>${formattedDate} · ${formattedTime}</span>
+                    </div>
+
+                    <!-- Brand / Logo Section -->
+                    <div style="text-align:center;margin-top:14px;margin-bottom:14px;">
+                        <div style="width:56px;height:56px;margin:0 auto 8px;border-radius:50%;overflow:hidden;border:2px solid #F1F5F9;box-shadow:0 4px 10px rgba(0,0,0,0.06);">
+                            <img src="${logoUrl}" alt="Royalvazier Textile" style="width:100%;height:100%;object-fit:cover;" onerror="this.src='/logo.png';" />
+                        </div>
+                        <div style="font-size:16px;font-weight:800;color:#0F172A;letter-spacing:-0.01em;line-height:1.2;">
+                            ${storeName}
+                        </div>
+                        <div style="font-size:10px;font-weight:700;color:#8C6A1A;letter-spacing:0.04em;text-transform:uppercase;margin-top:2px;">
+                            ${parentCompany} · ${rcNumber}
+                        </div>
+                        <div style="font-size:11px;color:#64748B;margin-top:2px;">
+                            Kantin Kwari Market, Kano
                         </div>
 
-                        <div class="orn"><b>RECEIPT</b></div>
-
-                        <div class="meta">
-                            <div><div class="l">RECEIPT NO.</div><div class="v m">${sale.id}</div></div>
-                            <div><div class="l">DATE</div><div class="v m">${formattedDate}</div></div>
-                            <div><div class="l">TIME</div><div class="v m">${formattedTime}</div></div>
-                            <div><div class="l">SERVED BY</div><div class="v">${cashierName}</div></div>
+                        <div style="margin-top:12px;font-size:18px;font-weight:800;color:#0F172A;letter-spacing:-0.02em;">
+                            ${displayTitle}
                         </div>
-
-                        <div class="cust">
-                            <div class="l">BILLED TO</div>
-                            <div class="n">${sale.customerName || 'Walk-in Customer'}</div>
-                            <div class="d">${sale.customerPhone ? `${sale.customerPhone} · Direct Counter` : 'Walk-in Counter · Immediate Fulfillment'}</div>
-                        </div>
-
-                        <div class="row th"><div>ITEM</div><div>QTY</div><div>AMOUNT</div></div>
-                        ${itemsRows || `<div class="row it"><div><div class="a">General Order</div><div class="s">RVT-STD</div></div><div>1</div><div>₦${total.toLocaleString()}</div></div>`}
-
-                        <div class="t">
-                            <p><span>Subtotal</span><span>₦${subtotal.toLocaleString()}</span></p>
-                            ${discount > 0 ? `<p class="d"><span>Discount</span><span>−₦${discount.toLocaleString()}</span></p>` : ''}
-                            ${vat > 0 ? `<p><span>VAT (Statutory)</span><span>₦${vat.toLocaleString()}</span></p>` : ''}
-                            <p><span>Payment Mode</span><span>${String(sale.paymentMethod || 'Cash').toUpperCase()}</span></p>
-                            <div class="grand"><div class="l">TOTAL</div><div class="amt">₦${total.toLocaleString()}</div></div>
-                        </div>
-
-                        <div class="foot">
-                            <div class="seal"><div><b>${initials}</b><i>${sealText}</i></div></div>
-                            <div class="sig">${cashierName}</div>
-                            <div class="sl"></div>
-                            <div class="role">AUTHORIZED SIGNATORY</div>
-                            <div class="bar"></div>
-                            <div class="bn">* ${sale.id} *</div>
-                            <div class="addr">
-                                <b>STORE LOCATION</b>
-                                ${storeSettings.businessAddress || 'Official Retail Location'}${storeSettings.businessPhone ? ` · Tel: ${storeSettings.businessPhone}` : ''}
-                            </div>
-                            <div class="thx"><span>${storeSettings.receiptFooter || 'Thank you for your patronage!'}</span></div>
-                            <div class="rc">RETAIN RECEIPT FOR YOUR RECORDS</div>
+                        <div style="font-size:11px;color:${isDebt ? '#D97706' : '#059669'};font-weight:700;margin-top:2px;">
+                            ${displaySubtitle}
                         </div>
                     </div>
+
+                    <!-- Customer Information Strip -->
+                    <div style="background:#F8FAFC;border-radius:10px;padding:8px 12px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;font-size:11.5px;border:1px solid #F1F5F9;">
+                        <div style="text-align:left;">
+                            <span style="color:#64748B;font-weight:600;">${isDebt ? 'Debtor: ' : 'Billed to: '}</span>
+                            <strong style="color:#0F172A;">${sale.customerName || 'Walk-in Customer'}</strong>
+                            ${sale.customerPhone ? `<div style="font-size:10.5px;color:#64748B;margin-top:1px;">Tel: ${sale.customerPhone}</div>` : ''}
+                            ${isDebt ? `<div style="font-size:10px;color:#B45309;font-weight:700;margin-top:2px;">Due Date: ${formattedDueDate}</div>` : ''}
+                        </div>
+                        <span style="padding:4px 8px;border-radius:6px;background:${isDebt ? '#FEF3C7' : '#DCFCE7'};color:${isDebt ? '#B45309' : '#15803D'};font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.04em;border:${isDebt ? '1px solid #FDE68A' : '1px solid #BBF7D0'};">
+                            ${isDebt ? 'UNPAID CREDIT' : sale.isSettlement ? 'SETTLED' : String(sale.paymentMethod || 'Cash').toUpperCase()}
+                        </span>
+                    </div>
+
+                    <!-- Section Title -->
+                    <div style="font-size:10.5px;font-weight:800;color:#64748B;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:8px;text-align:left;">
+                        PAYMENT SUMMARY
+                    </div>
+
+                    <!-- Table Header -->
+                    <div style="display:grid;grid-template-columns:1fr 50px 85px;gap:8px;padding-bottom:6px;border-bottom:1px solid #E2E8F0;font-size:10.5px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:0.04em;">
+                        <div style="text-align:left;">ITEMS</div>
+                        <div style="text-align:center;">QUANTITY</div>
+                        <div style="text-align:right;">PRICE</div>
+                    </div>
+
+                    <!-- Items List -->
+                    <div style="margin:4px 0 10px;">
+                        ${itemsHtml}
+                    </div>
+
+                    <!-- Subtotals & Taxes -->
+                    <div style="border-top:1px solid #E2E8F0;padding-top:10px;margin-top:6px;">
+                        <div style="display:flex;justify-content:space-between;font-size:11.5px;color:#64748B;margin-bottom:4px;">
+                            <span>Subtotal</span>
+                            <span style="font-weight:600;color:#0F172A;">₦${subtotal.toLocaleString()}</span>
+                        </div>
+                        ${vat > 0 ? `
+                            <div style="display:flex;justify-content:space-between;font-size:11.5px;color:#64748B;margin-bottom:4px;">
+                                <span>VAT (7.5%)</span>
+                                <span style="font-weight:600;color:#0F172A;">₦${vat.toLocaleString()}</span>
+                            </div>
+                        ` : ''}
+                        ${discount > 0 ? `
+                            <div style="display:flex;justify-content:space-between;font-size:11.5px;color:#DC2626;margin-bottom:4px;">
+                                <span>Discount</span>
+                                <span style="font-weight:700;">−₦${discount.toLocaleString()}</span>
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    <!-- Grand Total Row -->
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:12px;padding-top:10px;border-top:1px dashed #CBD5E1;">
+                        <span style="font-size:15px;font-weight:800;color:#0F172A;letter-spacing:0.04em;">
+                            ${isDebt ? 'BALANCE DUE' : 'TOTAL'}
+                        </span>
+                        <span style="font-size:26px;font-weight:800;color:${isDebt ? '#D97706' : '#059669'};letter-spacing:-0.02em;">
+                            ₦${total.toLocaleString()}
+                        </span>
+                    </div>
+
+                    <!-- Barcode & Store Details -->
+                    <div style="margin-top:18px;padding-top:14px;border-top:1px solid #F1F5F9;text-align:center;">
+                        <div style="display:flex;justify-content:center;overflow:hidden;">
+                            ${barcodeSvg}
+                        </div>
+                        <div style="font-size:10px;font-family:'JetBrains Mono',monospace;color:#64748B;letter-spacing:2px;margin-top:4px;font-weight:600;">
+                            * ${sale.id} *
+                        </div>
+
+                        <div style="font-size:10px;color:#64748B;margin-top:10px;line-height:1.45;">
+                            <div style="font-weight:700;color:#0F172A;">Selling Quality Textiles in Bulk & Retail Nationwide</div>
+                            <div>${address}</div>
+                            <div>Hotline: ${phone}</div>
+                            <div style="font-size:9px;color:#94A3B8;margin-top:3px;">
+                                Goods bought in good condition are not returnable
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom Serrated Edge -->
+                <div style="width:100%;height:10px;line-height:0;overflow:hidden;">
+                    <svg viewBox="0 0 360 10" preserveAspectRatio="none" style="width:100%;height:10px;display:block;">
+                        <path d="${bottomSerratedPath}" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="0.75" />
+                    </svg>
                 </div>
             </div>
         `;
@@ -263,7 +353,13 @@ export const Utils = {
 
     generateReceiptHTML(sale: any, settings?: any): string {
         const bodyContent = Utils.generateReceiptPrintContent(sale, settings);
-        const storeSettings = settings || {};
+        let storeSettings = settings;
+        if (!storeSettings && typeof window !== 'undefined') {
+            try {
+                storeSettings = JSON.parse(localStorage.getItem('bc_settings') || '{}');
+            } catch {}
+        }
+        storeSettings = storeSettings || {};
         const storeName = storeSettings.businessName || 'Royalvazier Textile';
         return `<!DOCTYPE html>
 <html lang="en">
@@ -271,87 +367,93 @@ export const Utils = {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>${storeName} — Receipt #${sale.id}</title>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Cormorant+Garamond:ital,wght@0,600;1,500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
-:root{--g1:#FFE9A8;--g2:#E5B94E;--g3:#C9A227;--gd:#8C6A1A;--ink:#0A0A0A;--paper:#F8F2E2;--muted:#6B6250}
-*{box-sizing:border-box;margin:0;padding:0}
-body{background:#060608;display:grid;place-items:center;padding:16px 8px;min-height:100vh;font-family:'Cormorant Garamond',Georgia,serif;color:var(--ink);
-background:radial-gradient(500px 360px at 15% 0,rgba(229,185,78,.14),transparent 60%),radial-gradient(500px 360px at 95% 100%,rgba(201,162,39,.1),transparent 60%),#060608}
-.wrap{filter:drop-shadow(0 18px 28px rgba(201,162,39,.35));animation:rise .7s cubic-bezier(.2,.8,.2,1);display:flex;justify-content:center}
-@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
-.receipt{width:290px;position:relative;padding:14px 12px;background:
-radial-gradient(circle at 50% 42%,rgba(201,162,39,.09) 0 38%,transparent 39%),
-repeating-linear-gradient(45deg,rgba(140,106,26,.035) 0 1px,transparent 1px 5px),
-linear-gradient(180deg,#FBF6E7,#EEE3C8);
--webkit-mask:conic-gradient(from -45deg at bottom,#0000,#000 1deg 89deg,#0000 90deg) bottom/10px 51% repeat-x,conic-gradient(from 135deg at top,#0000,#000 1deg 89deg,#0000 90deg) top/10px 51% repeat-x;
-mask:conic-gradient(from -45deg at bottom,#0000,#000 1deg 89deg,#0000 90deg) bottom/10px 51% repeat-x,conic-gradient(from 135deg at top,#0000,#000 1deg 89deg,#0000 90deg) top/10px 51% repeat-x}
-.frame{position:relative;padding:12px 11px;border:1px solid var(--g3);outline:1px solid rgba(140,106,26,.35);outline-offset:3px}
-.frame::before,.frame::after,.c1,.c2{content:"◆";position:absolute;font-size:7px;color:var(--g3);background:#F5EDD6;line-height:1;padding:1px}
-.frame::before{top:-5px;left:-5px}.frame::after{top:-5px;right:-5px}
-.c1{bottom:-5px;left:-5px}.c2{bottom:-5px;right:-5px}
-.head{text-align:center}
-.head svg,.head img{width:46px;height:46px;display:block;margin:0 auto 3px;object-fit:contain}
-.brand{font-family:'Cinzel',serif;font-weight:700;font-size:13px;letter-spacing:4px;
-background:linear-gradient(180deg,#B8901F,#6E5010 55%,#C9A227);-webkit-background-clip:text;background-clip:text;color:transparent}
-.sub{font-family:'Cinzel',serif;font-size:6px;letter-spacing:5px;color:var(--gd);margin-top:1px}
-.orn{display:flex;align-items:center;gap:6px;margin:8px 0 6px;color:var(--g3);font-size:6px}
-.orn::before,.orn::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,transparent,var(--g3),transparent)}
-.orn b{font-family:'Cinzel',serif;font-size:7px;letter-spacing:5px;color:var(--gd)}
-.meta{display:grid;grid-template-columns:1fr 1fr;gap:5px 10px;margin-bottom:8px}
-.l{font-family:'Cinzel',serif;font-size:5.5px;letter-spacing:2px;color:var(--gd);font-weight:700}
-.v{font-size:10px;font-weight:600;margin-top:0}
-.m{font-family:'JetBrains Mono',monospace;font-size:8px;font-weight:500}
-.cust{border:1px solid rgba(140,106,26,.35);background:rgba(245,215,122,.12);padding:6px 8px;margin-bottom:8px}
-.cust .n{font-size:12px;font-weight:600;line-height:1.1}
-.cust .d{font-family:'JetBrains Mono',monospace;font-size:6.5px;color:var(--muted);margin-top:2px;line-height:1.5}
-.row{display:grid;grid-template-columns:1fr 20px 62px;gap:4px;align-items:center}
-.th{padding:4px 0;border-top:1px solid var(--g3);border-bottom:1px solid var(--g3)}
-.th div{font-family:'Cinzel',serif;font-size:5.5px;letter-spacing:2px;color:var(--gd);font-weight:700}
-.th div:nth-child(n+2),.it div:nth-child(n+2){text-align:right}
-.it{padding:5px 0;border-bottom:1px dashed rgba(140,106,26,.3)}
-.it .a{font-size:11px;font-weight:600;line-height:1.1}
-.it .s{font-family:'JetBrains Mono',monospace;font-size:5.5px;color:var(--muted);letter-spacing:1px}
-.it div:nth-child(n+2){font-family:'JetBrains Mono',monospace;font-size:8.5px}
-.t{margin-top:6px}
-.t p{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);padding:1.5px 0}
-.t p span:last-child{font-family:'JetBrains Mono',monospace;font-size:8.5px;color:var(--ink)}
-.t .d span:last-child{color:#8C1D2C}
-.grand{position:relative;overflow:hidden;margin-top:6px;padding:7px 9px;display:flex;justify-content:space-between;align-items:center;
-background:linear-gradient(180deg,#141414,#000);border:1px solid var(--g3);outline:1px solid rgba(0,0,0,.6);outline-offset:-3px}
-.grand::after{content:"";position:absolute;top:0;bottom:0;width:40px;left:-60px;background:linear-gradient(100deg,transparent,rgba(255,233,168,.35),transparent);animation:sh 3.5s infinite}
-@keyframes sh{to{left:130%}}
-.grand .l{color:var(--g2);font-size:6.5px;letter-spacing:3px}
-.grand .amt{font-size:19px;font-weight:700;line-height:1;background:linear-gradient(180deg,#FFF3C4,#E5B94E);-webkit-background-clip:text;background-clip:text;color:transparent}
-.foot{text-align:center;margin-top:9px;padding-top:8px;border-top:1px solid rgba(140,106,26,.3)}
-.seal{width:40px;height:40px;margin:0 auto 4px;border-radius:50%;display:grid;place-items:center;transform:rotate(-6deg);position:relative;
-background:radial-gradient(circle at 35% 30%,#FFF3C4,var(--g1) 30%,var(--g2) 60%,var(--g3) 85%,var(--gd));
-box-shadow:0 4px 10px -3px rgba(140,106,26,.8),inset 0 2px 2px rgba(255,255,255,.7),inset 0 -2px 4px rgba(140,106,26,.6)}
-.seal::before{content:"";position:absolute;inset:4px;border-radius:50%;border:1px dashed rgba(140,106,26,.55)}
-.seal b{font-family:'Cinzel',serif;font-size:10px;line-height:1}
-.seal i{display:block;font:700 4px 'Cinzel',serif;letter-spacing:1.5px;color:var(--gd);font-style:normal;text-align:center}
-.sig{font-style:italic;font-size:11px}
-.sl{width:80px;height:1px;background:rgba(140,106,26,.5);margin:1px auto}
-.role{font-family:'Cinzel',serif;font-size:5px;letter-spacing:2px;color:var(--gd);font-weight:700}
-.bar{height:18px;margin:7px 10px 2px;background:repeating-linear-gradient(90deg,var(--ink) 0 1px,transparent 1px 2px,var(--ink) 2px 4px,transparent 4px 5px,var(--ink) 5px 6px,transparent 6px 8px)}
-.bn{font-family:'JetBrains Mono',monospace;font-size:6.5px;letter-spacing:3px;color:var(--muted)}
-.addr{font-size:9px;color:var(--muted);line-height:1.35;margin-top:6px}
-.addr b{display:block;font-family:'Cinzel',serif;font-size:6px;letter-spacing:2px;color:var(--gd)}
-.thx{font-style:italic;font-size:11px;margin-top:6px}.thx span{color:var(--g3)}
-.rc{font-family:'JetBrains Mono',monospace;font-size:6px;letter-spacing:2px;color:var(--muted);margin-top:3px}
-.acts{width:290px;margin:12px auto 0;display:grid;grid-template-columns:1fr 1fr;gap:6px}
-.btn{padding:8px;border:1px solid rgba(201,162,39,.5);background:rgba(201,162,39,.06);color:var(--g1);font:700 8px 'Cinzel',serif;letter-spacing:3px;cursor:pointer;border-radius:2px;transition:.25s}
-.btn:hover{background:var(--g2);color:var(--ink)}
-.full{grid-column:1/-1}
-@media print{@page{size:80mm auto;margin:0}body{background:#fff;padding:0;display:block}.acts{display:none}.wrap{filter:none;animation:none}.receipt{width:100%}.grand::after{display:none}}
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+}
+body {
+    background: #0F172A;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 12px;
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    color: #0F172A;
+}
+.ticket-outer-wrapper {
+    width: 100%;
+    max-width: 380px;
+    margin: 0 auto;
+    filter: drop-shadow(0 18px 30px rgba(0,0,0,0.12));
+}
+.ticket-actions-bar {
+    margin-top: 18px;
+    display: flex;
+    gap: 10px;
+    width: 100%;
+    max-width: 380px;
+}
+.ticket-btn {
+    flex: 1;
+    padding: 12px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+    border: none;
+    transition: transform 0.15s, opacity 0.15s;
+}
+.ticket-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+.ticket-btn-primary { background: #059669; color: #FFFFFF; }
+.ticket-btn-secondary { background: #1E293B; color: #F1F5F9; border: 1px solid #334155; }
+
+@media print {
+    @page {
+        size: 80mm auto;
+        margin: 0;
+    }
+    html, body {
+        width: 80mm !important;
+        max-width: 80mm !important;
+        margin: 0 !important;
+        padding: 3mm 0 !important;
+        background: #FFFFFF !important;
+        color: #0F172A !important;
+        display: block !important;
+        min-height: auto !important;
+    }
+    .ticket-outer-wrapper {
+        width: 76mm !important;
+        max-width: 76mm !important;
+        margin: 0 auto !important;
+        filter: none !important;
+        box-shadow: none !important;
+    }
+    .ticket-paper-content {
+        padding: 5mm 3.5mm !important;
+    }
+    .ticket-actions-bar {
+        display: none !important;
+    }
+}
 </style>
 </head>
 <body>
-<div>
-${bodyContent}
-<div class="acts">
-    <button class="btn full" onclick="window.print()">PRINT RECEIPT</button>
-</div>
-</div>
+    ${bodyContent}
+    <div class="ticket-actions-bar">
+        <button class="ticket-btn ticket-btn-primary" onclick="window.print()">Print Receipt</button>
+        <button class="ticket-btn ticket-btn-secondary" onclick="window.close()">Close</button>
+    </div>
 </body>
 </html>`;
     },
@@ -361,7 +463,10 @@ ${bodyContent}
         if (!printContainer) {
             printContainer = document.createElement('div');
             printContainer.id = 'vendora-receipt-print-area';
+            printContainer.style.display = 'none';
             document.body.appendChild(printContainer);
+        } else {
+            printContainer.style.display = 'none';
         }
         printContainer.innerHTML = Utils.generateReceiptPrintContent(sale, settings);
         return printContainer;
@@ -370,48 +475,62 @@ ${bodyContent}
     printReceipt(sale: any, settings?: any): boolean {
         if (!sale) return false;
         try {
-            // 1. Mount into dedicated print element for 100% reliable @media print
+            // 1. Mount into dedicated print element for backup
             Utils.mountReceiptForPrint(sale, settings);
 
-            // 2. Prepare iframe document if possible
-            try {
-                let iframe = document.getElementById('receipt-print-frame') as HTMLIFrameElement;
-                if (!iframe) {
-                    iframe = document.createElement('iframe');
-                    iframe.id = 'receipt-print-frame';
-                    iframe.style.position = 'fixed';
-                    iframe.style.top = '0';
-                    iframe.style.left = '0';
-                    iframe.style.width = '1px';
-                    iframe.style.height = '1px';
-                    iframe.style.border = '0';
-                    iframe.style.opacity = '0.01';
-                    iframe.style.pointerEvents = 'none';
-                    document.body.appendChild(iframe);
-                }
-                const frameDoc = iframe.contentWindow?.document || iframe.contentDocument;
-                if (frameDoc) {
-                    frameDoc.open();
-                    frameDoc.write(Utils.generateReceiptHTML(sale, settings));
-                    frameDoc.close();
-                }
-            } catch (frameErr) {
-                console.warn('Iframe setup notice:', frameErr);
+            // 2. Prepare iframe document for isolated, crisp thermal printing
+            let iframe = document.getElementById('receipt-print-frame') as HTMLIFrameElement;
+            if (!iframe) {
+                iframe = document.createElement('iframe');
+                iframe.id = 'receipt-print-frame';
+                iframe.style.position = 'fixed';
+                iframe.style.top = '0';
+                iframe.style.left = '0';
+                iframe.style.width = '1px';
+                iframe.style.height = '1px';
+                iframe.style.border = '0';
+                iframe.style.opacity = '0.01';
+                iframe.style.pointerEvents = 'none';
+                document.body.appendChild(iframe);
             }
 
-            // 3. Trigger native window print
-            setTimeout(() => {
-                try {
-                    window.focus();
-                    window.print();
-                } catch (printErr) {
-                    console.warn('Window print failed, fallback to iframe:', printErr);
-                    const iframe = document.getElementById('receipt-print-frame') as HTMLIFrameElement;
-                    iframe?.contentWindow?.focus();
-                    iframe?.contentWindow?.print();
-                }
-            }, 60);
+            const receiptHtml = Utils.generateReceiptHTML(sale, settings);
+            const frameDoc = iframe.contentWindow?.document || iframe.contentDocument;
 
+            if (frameDoc && iframe.contentWindow) {
+                frameDoc.open();
+                frameDoc.write(receiptHtml);
+                frameDoc.close();
+
+                // Wait for iframe styles/fonts to mount, then print iframe cleanly
+                setTimeout(() => {
+                    try {
+                        iframe.contentWindow?.focus();
+                        iframe.contentWindow?.print();
+                    } catch (iframePrintErr) {
+                        console.warn('Iframe print error, attempting window popup print:', iframePrintErr);
+                        const printWin = window.open('', '_blank', 'width=420,height=700');
+                        if (printWin) {
+                            printWin.document.open();
+                            printWin.document.write(receiptHtml);
+                            printWin.document.close();
+                            printWin.focus();
+                            setTimeout(() => {
+                                printWin.print();
+                            }, 250);
+                        } else {
+                            window.focus();
+                            window.print();
+                        }
+                    }
+                }, 200);
+
+                return true;
+            }
+
+            // Fallback: window print
+            window.focus();
+            window.print();
             return true;
         } catch (err) {
             console.error('Failed to trigger receipt printing:', err);

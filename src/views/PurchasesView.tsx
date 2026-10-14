@@ -17,10 +17,10 @@ export const PurchasesView: React.FC = () => {
     const [purchases, setPurchases] = useState<Purchase[]>(Store.getPurchases());
 
     const [selectedProductId, setSelectedProductId] = useState('');
-    const [intakeQty, setIntakeQty] = useState<number | string>(10);
-    const [unitCost, setUnitCost] = useState<number | string>(28500);
-    const [supplier, setSupplier] = useState('Alhaji Musa Wholesalers');
-    const [invoiceNo, setInvoiceNo] = useState('INV-2026-089');
+    const [intakeQty, setIntakeQty] = useState<number | string>('');
+    const [unitCost, setUnitCost] = useState<number | string>('');
+    const [supplier, setSupplier] = useState('');
+    const [invoiceNo, setInvoiceNo] = useState('');
     const [successMsg, setSuccessMsg] = useState('');
 
     useEffect(() => {
@@ -35,7 +35,7 @@ export const PurchasesView: React.FC = () => {
     useEffect(() => {
         if (!selectedProductId && products.length > 0) {
             setSelectedProductId(products[0].id);
-            setUnitCost(products[0].buyPrice || 28500);
+            setUnitCost(products[0].buyPrice || '');
         }
     }, [products]);
 
@@ -45,7 +45,7 @@ export const PurchasesView: React.FC = () => {
         setSelectedProductId(id);
         const p = products.find(prod => prod.id === id);
         if (p) {
-            setUnitCost(p.buyPrice || 28500);
+            setUnitCost(p.buyPrice || '');
         }
     };
 

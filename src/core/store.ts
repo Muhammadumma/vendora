@@ -1,9 +1,14 @@
+import { FirebaseSync, FirebaseAuthService } from './firebase';
+
 export interface UserSession {
+    uid?: string;
+    email?: string;
     name: string;
     password?: string;
     role: string;
     isLoggedIn: boolean;
     isPro?: boolean;
+    authProvider?: 'firebase-email' | 'firebase-google' | 'demo' | 'local';
     profilePic?: string | null;
     securityQuestions?: { question: string; answer: string }[] | null;
 }
@@ -76,12 +81,39 @@ export interface Settings {
     vatEnabled: boolean;
     vatRate: number;
     businessName: string;
+    parentCompany?: string;
+    rcNumber?: string;
     businessAddress: string;
     businessPhone: string;
+    businessEmail?: string;
     receiptFooter: string;
     theme: string;
     businessLogo?: string;
+    socials?: {
+        instagram?: string;
+        facebook?: string;
+        twitter?: string;
+    };
 }
+
+const defaultRoyalvazierSettings: Settings = {
+    vatEnabled: true,
+    vatRate: 7.5,
+    businessName: 'Royalvazier Textile',
+    parentCompany: 'Royalvazier Global Services Ltd',
+    rcNumber: 'RC9636293',
+    businessAddress: 'No:15 Gidan Baba Dan Baffa Beside Jumma’at Mosque opp. Ganduje Building Kantin Kwari market Kano',
+    businessPhone: '+2348137098824 / +2349060042040',
+    businessEmail: 'info@royalvazier.com.ng',
+    receiptFooter: 'Wholesale & Retail Fabrics Across Nigeria • Goods bought in good condition are not returnable',
+    theme: localStorage.getItem('bc_theme') || 'light',
+    businessLogo: '/royalvazier-logo.png',
+    socials: {
+        instagram: '@royalvazier_textile',
+        facebook: 'Royalvazier Global Services Ltd',
+        twitter: '@royalvaziertex'
+    }
+};
 
 type Listener = () => void;
 
@@ -94,15 +126,14 @@ class StoreClass {
         sales: (JSON.parse(localStorage.getItem('bc_sales') || '[]')) as Sale[],
         purchases: (JSON.parse(localStorage.getItem('bc_purchases') || '[]')) as Purchase[],
         debts: (JSON.parse(localStorage.getItem('bc_debts') || '[]')) as Debt[],
-        settings: (JSON.parse(localStorage.getItem('bc_settings') || 'null') || {
-            vatEnabled: true,
-            vatRate: 15,
-            businessName: 'Vendora Marketing',
-            businessAddress: '123 Business Street, Lagos',
-            businessPhone: '+234 800 000 0000',
-            receiptFooter: 'Thank you for your patronage! Goods bought in good condition are not returnable.',
-            theme: localStorage.getItem('bc_theme') || 'light'
-        }) as Settings,
+        settings: (() => {
+            const saved = JSON.parse(localStorage.getItem('bc_settings') || 'null');
+            if (!saved || saved.businessName === 'Vendora Marketing' || saved.businessName === 'VENDORA RETAIL') {
+                localStorage.setItem('bc_settings', JSON.stringify(defaultRoyalvazierSettings));
+                return defaultRoyalvazierSettings;
+            }
+            return { ...defaultRoyalvazierSettings, ...saved, businessLogo: saved.businessLogo || '/royalvazier-logo.png' };
+        })() as Settings,
         isSyncing: false
     };
 
@@ -152,22 +183,51 @@ class StoreClass {
     }
 
     // Auth
-    login(username: string, password?: string, profilePic: string | null = null): boolean {
+    login(username: string, password?: string, profilePic: string | null = null, extra?: Partial<UserSession>): boolean {
         if (!username) return false;
         const existing = this.state.activeSession;
         const user: UserSession = {
+            uid: extra?.uid,
             name: username,
+            email: extra?.email || (username.includes('@') ? username : undefined),
             password: password || '123456',
-            role: 'Admin',
+            role: extra?.role || 'Admin',
             isLoggedIn: true,
-            isPro: false,
-            profilePic: profilePic || (existing && existing.name === username ? existing.profilePic : null),
-            securityQuestions: (existing && existing.name === username) ? existing.securityQuestions : null
+            isPro: true,
+            authProvider: extra?.authProvider || 'local',
+            profilePic: profilePic || extra?.profilePic || (existing && existing.name === username ? existing.profilePic : null),
+            securityQuestions: (existing && existing.name === username) ? existing.securityQuestions : [
+                { question: 'Account Security', answer: 'verified' }
+            ]
         };
         this.state.activeSession = user;
         this._save('bc_user', user);
         this.notify();
         return true;
+    }
+
+    loginWithFirebaseUser(
+        fbUser: { uid: string; email?: string | null; displayName?: string | null; photoURL?: string | null },
+        provider: 'firebase-email' | 'firebase-google' = 'firebase-email'
+    ): UserSession {
+        const name = fbUser.displayName || (fbUser.email ? fbUser.email.split('@')[0] : 'Royal Admin');
+        const user: UserSession = {
+            uid: fbUser.uid,
+            name: name,
+            email: fbUser.email || undefined,
+            role: 'Admin',
+            isLoggedIn: true,
+            isPro: true,
+            authProvider: provider,
+            profilePic: fbUser.photoURL || null,
+            securityQuestions: [
+                { question: 'Account Security', answer: 'firebase-verified' }
+            ]
+        };
+        this.state.activeSession = user;
+        this._save('bc_user', user);
+        this.notify();
+        return user;
     }
 
     setSecurityQuestions(questions: { question: string; answer: string }[]) {
@@ -199,6 +259,7 @@ class StoreClass {
         this.state.activeSession = null;
         localStorage.removeItem('bc_user');
         localStorage.removeItem('bc_migrated');
+        FirebaseAuthService.logout().catch(e => console.warn(e));
         this.notify();
     }
 
@@ -537,14 +598,46 @@ class StoreClass {
         }
     }
 
-    async syncWithFirestore() {
-        // Local simulation / fallback for seamless operation
+    async syncWithFirestore(): Promise<{ success: boolean; timestamp?: string; error?: string }> {
         this.state.isSyncing = true;
         this.notify();
-        await new Promise(r => setTimeout(r, 600));
-        this.state.isSyncing = false;
+        try {
+            const result = await FirebaseSync.pushStoreSnapshot({
+                products: this.state.products,
+                sales: this.state.sales,
+                debts: this.state.debts,
+                purchases: this.state.purchases,
+                settings: this.state.settings
+            });
+            this.state.isSyncing = false;
+            this.notify();
+            return result;
+        } catch (err: any) {
+            this.state.isSyncing = false;
+            this.notify();
+            return { success: false, error: err.message };
+        }
+    }
+
+    async restoreFromCloud(): Promise<{ success: boolean; error?: string }> {
+        this.state.isSyncing = true;
         this.notify();
-        return true;
+        try {
+            const result = await FirebaseSync.pullStoreSnapshot();
+            if (!result.success || !result.data) {
+                this.state.isSyncing = false;
+                this.notify();
+                return { success: false, error: result.error || 'No cloud data found.' };
+            }
+            this.restoreBackup(JSON.stringify(result.data));
+            this.state.isSyncing = false;
+            this.notify();
+            return { success: true };
+        } catch (err: any) {
+            this.state.isSyncing = false;
+            this.notify();
+            return { success: false, error: err.message };
+        }
     }
 
     private _save(key: string, data: any) {

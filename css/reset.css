@@ -27,30 +27,27 @@ html:focus-within {
     scroll-behavior: smooth;
 }
 
+html,
 body {
     min-height: 100vh;
-    text-rendering: optimizeSpeed;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     line-height: 1.5;
-    font-family: var(--font-family, system-ui, sans-serif);
+    font-family: 'Plus Jakarta Sans', 'Inter', sans-serif !important;
     background-color: var(--bg-body, #F3F4F6);
     color: var(--text-main, #111827);
 }
 
-a:not([class]) {
-    text-decoration-skip-ink: auto;
-}
-
-img,
-picture {
-    max-width: 100%;
-    display: block;
-}
-
+*,
+*::before,
+*::after,
 input,
 button,
 textarea,
-select {
-    font: inherit;
+select,
+optgroup {
+    font-family: 'Plus Jakarta Sans', 'Inter', sans-serif !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -628,11 +628,11 @@ High Threshold Warning,Pantry,SKU-HIGHTHRESH-01,10,2000,2500,Supplier,999`;
                                                                 <td>
                                                                     {r.valid ? (
                                                                         <span style={{ padding: '2px 6px', borderRadius: '4px', background: '#DCFCE7', color: '#15803D', fontSize: '10.5px', fontWeight: 800 }}>
-                                                                            ✓ Valid
+                                                                            Valid
                                                                         </span>
                                                                     ) : (
                                                                         <span style={{ padding: '2px 6px', borderRadius: '4px', background: '#FEE2E2', color: '#B91C1C', fontSize: '10.5px', fontWeight: 800 }}>
-                                                                            ❌ Rejected
+                                                                            Invalid
                                                                         </span>
                                                                     )}
                                                                 </td>

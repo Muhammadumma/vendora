@@ -74,8 +74,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         />
                     </div>
                     <div>
-                        <div style={{ fontSize: '15px', fontWeight: 800, color: '#FFFFFF', lineHeight: 1.2 }}>Vendora</div>
-                        <div style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 500 }}>Stock Control Hub</div>
+                        <div style={{ fontSize: '15px', fontWeight: 800, color: '#FFFFFF', lineHeight: 1.2 }}>Royalvazier</div>
+                        <div style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 500 }}>Textile · Kantin Kwari</div>
                     </div>
                 </div>
                 <button

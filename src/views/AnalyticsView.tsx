@@ -11,7 +11,8 @@ import {
     MessageSquare,
     Package,
     ClipboardList,
-    Bot
+    Bot,
+    Tag
 } from 'lucide-react';
 import { Store } from '../core/store';
 import { Utils } from '../core/utils';
@@ -114,7 +115,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigate }) => {
                 <div className="card" style={{ padding: '18px', borderRadius: '18px', background: '#FFFFFF', border: '1px solid #EDF2F7', marginBottom: '10px', position: 'relative', overflow: 'hidden' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 700, color: '#64748B' }}>
-                            <span style={{ fontSize: '14px' }}>🏷️</span>
+                            <Tag size={14} color="#64748B" />
                             LIVE REVENUE
                         </div>
                         <span style={{ display: 'flex', alignItems: 'center', gap: '3px', padding: '2px 8px', borderRadius: '10px', background: '#ECFDF5', color: '#10B981', fontSize: '11px', fontWeight: 800 }}>
@@ -189,7 +190,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigate }) => {
                     <div style={{ display: 'flex', gap: '10px' }}>
                         <TrendingUp size={16} color="#F95721" style={{ flexShrink: 0, marginTop: '2px' }} />
                         <div style={{ fontSize: '13px', color: '#334155', lineHeight: 1.4 }}>
-                            <strong style={{ color: '#0F172A' }}>Top Revenue & Margin Driver:</strong> Vegetable Oil 25L accounts for <strong style={{ color: '#F95721' }}>72%</strong> of current turnover with a clean 11% gross margin profile.
+                            <strong style={{ color: '#0F172A' }}>Revenue Analysis:</strong> Run a full analysis to see your top-selling fabrics, margin drivers, and revenue breakdown by product and payment method.
                         </div>
                     </div>
 
@@ -197,7 +198,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigate }) => {
                     <div style={{ display: 'flex', gap: '10px' }}>
                         <AlertTriangle size={16} color="#DC2626" style={{ flexShrink: 0, marginTop: '2px' }} />
                         <div style={{ fontSize: '13px', color: '#334155', lineHeight: 1.4 }}>
-                            <strong style={{ color: '#DC2626' }}>Stockout Risk Detected:</strong> Only <strong style={{ color: '#DC2626' }}>2 units remaining</strong> in stock. Potential ₦64,000 missed revenue exposure over the upcoming weekend.
+                            <strong style={{ color: '#DC2626' }}>Stock Alerts:</strong> Low stock warnings and reorder recommendations will appear here based on your live inventory thresholds.
                         </div>
                     </div>
 
@@ -205,7 +206,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigate }) => {
                     <div style={{ display: 'flex', gap: '10px', background: '#FFF2EB', borderRadius: '10px', padding: '10px' }}>
                         <CheckCircle2 size={16} color="#10B981" style={{ flexShrink: 0, marginTop: '2px' }} />
                         <div style={{ fontSize: '12px', color: '#334155', lineHeight: 1.4 }}>
-                            <strong style={{ color: '#0F172A' }}>Recommended:</strong> Trigger replenishment PO for 10 units before 4:00 PM today.
+                            <strong style={{ color: '#0F172A' }}>Tip:</strong> Click the refresh button above or use the analysis prompts below to generate real-time business intelligence from your sales data.
                         </div>
                     </div>
                 </div>
@@ -218,7 +219,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigate }) => {
                         onClick={() => { window.location.hash = '#purchases'; onNavigate('purchases'); }}
                         style={{ padding: '12px', borderRadius: '12px', fontSize: '13px', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
                     >
-                        <Truck size={16} /> Restock Oil Now
+                        <Truck size={16} /> Restock Inventory
                     </button>
                     <button
                         type="button"

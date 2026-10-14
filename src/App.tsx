@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Store, UserSession } from './core/store';
+import { FirebaseAuthService } from './core/firebase';
 import { Sidebar } from './components/Sidebar';
 import { TopBar } from './components/TopBar';
 import { BottomNav } from './components/BottomNav';
@@ -22,80 +23,103 @@ export const App: React.FC = () => {
     const [user, setUser] = useState<UserSession | null>(Store.getUser());
     const [isSyncing, setIsSyncing] = useState<boolean>(false);
 
-    // Initial default demo data seeding if store is completely empty
+    // Initial default demo data seeding for Royalvazier Textile
     useEffect(() => {
-        if (Store.getProducts().length === 0) {
+        const migrated = localStorage.getItem('rv_textile_seeded_v1');
+        const existingProducts = Store.getProducts();
+        const hasOldGroceryData = existingProducts.some(p => p.name.includes('Flour') || p.name.includes('Indomie'));
+
+        if (!migrated || existingProducts.length === 0 || hasOldGroceryData) {
+            localStorage.removeItem('bc_products');
+            Store.state.products = [];
+
             Store.addProduct({
-                name: 'Golden Penny Flour 50kg',
-                sku: 'SKU-GP-FLOUR50',
-                category: 'Grains & Baking',
-                qty: 18,
-                buyPrice: 32000,
-                sellPrice: 36500,
-                supplier: 'Golden Penny Flour Mills',
+                name: 'Swiss Voile Cotton Lace (10 Yards)',
+                sku: 'RVT-SWISS-10Y',
+                category: 'Lace & Voile',
+                qty: 28,
+                buyPrice: 42000,
+                sellPrice: 52000,
+                supplier: 'Royalvazier Direct Imports',
                 threshold: 5
             });
             Store.addProduct({
-                name: 'Dangote Sugar 50kg',
-                sku: 'SKU-DG-SUGAR50',
-                category: 'Grains & Baking',
+                name: 'Atiku Super Soft Brocade (5 Yards)',
+                sku: 'RVT-ATIKU-05Y',
+                category: 'Brocade & Shadda',
+                qty: 45,
+                buyPrice: 18000,
+                sellPrice: 24500,
+                supplier: 'Kantin Kwari Direct Wholesaler',
+                threshold: 8
+            });
+            Store.addProduct({
+                name: 'Getzner Magnum Gold Jacquard (10 Yards)',
+                sku: 'RVT-GETZ-10Y',
+                category: 'Brocade & Shadda',
                 qty: 12,
-                buyPrice: 41000,
-                sellPrice: 45000,
-                supplier: 'Dangote Sugar Refinery',
-                threshold: 4
+                buyPrice: 85000,
+                sellPrice: 105000,
+                supplier: 'Getzner Textil Austria',
+                threshold: 3
             });
             Store.addProduct({
-                name: 'Vegetable Oil 25L',
-                sku: 'SKU-8921-VGOIL',
-                category: 'Oils & Fats',
-                qty: 4,
-                buyPrice: 28500,
-                sellPrice: 32000,
-                supplier: 'Grand Cereals Hub',
-                threshold: 5
-            });
-            Store.addProduct({
-                name: 'Indomie Super Pack (Carton)',
-                sku: 'SKU-IND-PACK',
-                category: 'Packaged Foods',
-                qty: 24,
-                buyPrice: 6200,
-                sellPrice: 7200,
-                supplier: 'Dufil Prima Foods',
+                name: 'Senator Cashmere Wool Blend (4 Yards)',
+                sku: 'RVT-SEN-04Y',
+                category: 'Suitings & Senator',
+                qty: 36,
+                buyPrice: 14000,
+                sellPrice: 19500,
+                supplier: 'Royalvazier Mills',
                 threshold: 6
             });
             Store.addProduct({
-                name: 'Peak Milk Powder 400g (x6)',
-                sku: 'SKU-PEAK-MILK',
-                category: 'Dairy',
-                qty: 2,
-                buyPrice: 11000,
-                sellPrice: 12800,
-                supplier: 'FrieslandCampina WAMCO',
-                threshold: 4
+                name: 'Ankara Real Dutch Wax (6 Yards)',
+                sku: 'RVT-ANK-06Y',
+                category: 'Ankara Wax',
+                qty: 54,
+                buyPrice: 12000,
+                sellPrice: 16500,
+                supplier: 'Vlisco Premium Line',
+                threshold: 10
+            });
+            Store.addProduct({
+                name: 'George Hand-Cut Beaded Silk (5 Yards)',
+                sku: 'RVT-GEO-05Y',
+                category: 'Lace & Voile',
+                qty: 8,
+                buyPrice: 55000,
+                sellPrice: 72000,
+                supplier: 'Royalvazier Exclusive Collection',
+                threshold: 3
             });
 
             // Sample sale
+            localStorage.removeItem('bc_sales');
+            Store.state.sales = [];
             Store.addSale({
-                customerName: 'Alhaji Musa Enterprise',
-                customerPhone: '0803 123 4567',
-                paymentMethod: 'Cash',
+                customerName: 'Alhaji Sanusi Dantata',
+                customerPhone: '0803 555 1234',
+                paymentMethod: 'Bank',
                 items: [
-                    { name: 'Golden Penny Flour 50kg', qty: 2, price: 36500, buyPrice: 32000 },
-                    { name: 'Indomie Super Pack (Carton)', qty: 3, price: 7200, buyPrice: 6200 }
+                    { name: 'Swiss Voile Cotton Lace (10 Yards)', qty: 2, price: 52000, buyPrice: 42000 },
+                    { name: 'Atiku Super Soft Brocade (5 Yards)', qty: 3, price: 24500, buyPrice: 18000 }
                 ],
-                total: 94600
+                total: 177500
             });
 
             // Sample debt
+            localStorage.removeItem('bc_debts');
+            Store.state.debts = [];
             Store.addDebt({
-                debtor: 'Mama Chinedu Provisions',
-                phone: '0812 987 6543',
-                product: '2 Cartons Indomie Noodles',
-                amount: 14400,
+                debtor: 'Hajiya Maryam Kano Fabrics',
+                phone: '0802 999 4455',
+                product: '2 Bales Ankara Real Dutch Wax (6 Yards)',
+                amount: 33000,
                 dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString()
             }, true);
+
+            localStorage.setItem('rv_textile_seeded_v1', 'true');
         }
     }, []);
 
@@ -129,13 +153,29 @@ export const App: React.FC = () => {
         }
     }, []);
 
-    // Store update listener
+    // Store & Firebase Auth update listener
     useEffect(() => {
         const unsubscribe = Store.subscribe(() => {
             setUser(Store.getUser());
             setIsSyncing(Store.state.isSyncing);
         });
-        return () => unsubscribe();
+
+        // Sync with Firebase Auth state
+        const unsubAuth = FirebaseAuthService.onAuthStateChange((fbUser) => {
+            if (fbUser) {
+                const current = Store.getUser();
+                if (!current || current.uid !== fbUser.uid) {
+                    const provider = fbUser.providerData?.[0]?.providerId === 'google.com' ? 'firebase-google' : 'firebase-email';
+                    const session = Store.loginWithFirebaseUser(fbUser, provider);
+                    setUser(session);
+                }
+            }
+        });
+
+        return () => {
+            unsubscribe();
+            unsubAuth();
+        };
     }, []);
 
     const handleSync = async () => {
@@ -144,7 +184,7 @@ export const App: React.FC = () => {
         setIsSyncing(false);
     };
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
         Store.logout();
         setUser(null);
     };
@@ -226,7 +266,7 @@ export const App: React.FC = () => {
 
             <AuthModal
                 user={user}
-                onLoginSuccess={(loggedInUser) => setUser(loggedInUser)}
+                onLoginSuccess={(loggedInUser) => setUser({ ...loggedInUser })}
             />
         </div>
     );

@@ -1,4 +1,9 @@
 :root {
+    /* Typography — Custom Modern Web Fonts only, No System Fonts */
+    --font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+    --font-display: 'Plus Jakarta Sans', 'Inter', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+
     /* Brand Colors - Vibrant Retail Orange & Warm Accents */
     --primary-color: #F95721;
     --primary-hover: #E64A19;

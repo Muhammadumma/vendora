@@ -20,7 +20,12 @@ import {
     FileSpreadsheet,
     Database,
     Sparkles,
-    Trash2
+    Trash2,
+    RefreshCw,
+    Cloud,
+    CloudUpload,
+    CloudDownload,
+    Wifi
 } from 'lucide-react';
 import { Store, Settings } from '../core/store';
 import { ExportService } from '../core/exportService';
@@ -30,6 +35,8 @@ export const SettingsView: React.FC = () => {
     const [savedMsg, setSavedMsg] = useState('');
     const [exportMsg, setExportMsg] = useState('');
     const [hapticClick, setHapticClick] = useState(true);
+    const [cloudMsg, setCloudMsg] = useState('');
+    const [cloudLoading, setCloudLoading] = useState<'push' | 'pull' | null>(null);
 
     // Password credentials state
     const [currentPassword, setCurrentPassword] = useState('');
@@ -190,18 +197,18 @@ export const SettingsView: React.FC = () => {
 
                     {/* Logo Monogram */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                        <div style={{ width: '48px', height: '48px', borderRadius: '12px', overflow: 'hidden', background: '#FFFFFF', border: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 6px rgba(0,0,0,0.06)' }}>
+                        <div style={{ width: '52px', height: '52px', borderRadius: '50%', overflow: 'hidden', background: '#FFFFFF', border: '2px solid #E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
                             <img
-                                src="/logo.png"
+                                src={settings.businessLogo || '/royalvazier-logo.png'}
                                 alt="Store Logo"
                                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                 onError={(e) => {
-                                    (e.currentTarget as HTMLElement).style.display = 'none';
+                                    (e.currentTarget as HTMLImageElement).src = '/logo.png';
                                 }}
                             />
                         </div>
                         <div>
-                            <div style={{ fontSize: '14px', fontWeight: 800, color: '#0F172A' }}>Store Logo & App Icon</div>
+                            <div style={{ fontSize: '14px', fontWeight: 800, color: '#0F172A' }}>Store Logo & Receipt Crest</div>
                             <div style={{ fontSize: '12px', color: '#64748B' }}>Appears on header, sidebar and printed receipts</div>
                         </div>
                     </div>
@@ -209,7 +216,7 @@ export const SettingsView: React.FC = () => {
                     {/* Shop Name */}
                     <div style={{ marginBottom: '14px' }}>
                         <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155', display: 'block', marginBottom: '4px' }}>
-                            Shop Display Name *
+                            Business / Brand Name *
                         </label>
                         <div style={{ position: 'relative' }}>
                             <input
@@ -222,6 +229,51 @@ export const SettingsView: React.FC = () => {
                             />
                             <StoreIcon size={16} color="#94A3B8" style={{ position: 'absolute', left: '12px', top: '14px' }} />
                         </div>
+                    </div>
+
+                    {/* Parent Company & RC Number */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
+                        <div>
+                            <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155', display: 'block', marginBottom: '4px' }}>
+                                Parent Company
+                            </label>
+                            <input
+                                type="text"
+                                className="search-input"
+                                style={{ width: '100%', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '12px', height: '44px', fontSize: '13px', fontWeight: 600, padding: '0 12px' }}
+                                value={settings.parentCompany || ''}
+                                onChange={e => setSettings({ ...settings, parentCompany: e.target.value })}
+                                placeholder="Royalvazier Global Services Ltd"
+                            />
+                        </div>
+                        <div>
+                            <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155', display: 'block', marginBottom: '4px' }}>
+                                Corporate RC Number
+                            </label>
+                            <input
+                                type="text"
+                                className="search-input"
+                                style={{ width: '100%', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '12px', height: '44px', fontSize: '13px', fontWeight: 600, padding: '0 12px' }}
+                                value={settings.rcNumber || ''}
+                                onChange={e => setSettings({ ...settings, rcNumber: e.target.value })}
+                                placeholder="RC9636293"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Email */}
+                    <div style={{ marginBottom: '14px' }}>
+                        <label style={{ fontSize: '12px', fontWeight: 700, color: '#334155', display: 'block', marginBottom: '4px' }}>
+                            Corporate Email
+                        </label>
+                        <input
+                            type="email"
+                            className="search-input"
+                            style={{ width: '100%', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '12px', height: '44px', fontSize: '13px', fontWeight: 600, padding: '0 12px' }}
+                            value={settings.businessEmail || ''}
+                            onChange={e => setSettings({ ...settings, businessEmail: e.target.value })}
+                            placeholder="info@royalvazier.com.ng"
+                        />
                     </div>
 
                     {/* Phone */}
@@ -465,9 +517,9 @@ export const SettingsView: React.FC = () => {
                     <button
                         type="button"
                         onClick={handleUpdateCredentials}
-                        style={{ width: '100%', padding: '12px', borderRadius: '12px', border: 'none', background: '#FFF2EB', color: '#F95721', fontSize: '13px', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                        style={{ width: '100%', padding: '12px', borderRadius: '12px', border: 'none', background: '#F1F5F9', color: '#0F172A', fontSize: '13px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                     >
-                        🔄 Update Credentials
+                        <RefreshCw size={15} /> Update Credentials
                     </button>
                 </div>
 
@@ -477,12 +529,12 @@ export const SettingsView: React.FC = () => {
                         <span style={{ fontSize: '11px', fontWeight: 800, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                             DISASTER RECOVERY & COLD STORAGE
                         </span>
-                        <Download size={16} color="#64748B" />
+                        <Database size={16} color="#64748B" />
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
-                        <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#FFF2EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <span style={{ fontSize: '18px' }}>💾</span>
+                        <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Database size={20} color="#0F172A" />
                         </div>
                         <div>
                             <div style={{ fontSize: '14px', fontWeight: 800, color: '#0F172A' }}>Encrypted Data Snapshot</div>
@@ -490,9 +542,119 @@ export const SettingsView: React.FC = () => {
                         </div>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', fontSize: '12px', color: '#64748B' }}>
+                    {/* Cloud Sync Status */}
+                    {cloudMsg && (
+                        <div style={{
+                            padding: '10px 14px',
+                            borderRadius: '10px',
+                            fontSize: '12.5px',
+                            marginBottom: '12px',
+                            background: cloudMsg.startsWith('✓') ? '#ECFDF5' : cloudMsg.startsWith('✗') ? '#FEF2F2' : '#EFF6FF',
+                            color: cloudMsg.startsWith('✓') ? '#065F46' : cloudMsg.startsWith('✗') ? '#DC2626' : '#1D4ED8',
+                            fontWeight: 600,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                        }}>
+                            <Cloud size={14} />
+                            <span>{cloudMsg}</span>
+                        </div>
+                    )}
+
+                    {/* Firebase Cloud Sync Row */}
+                    <div style={{ background: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: '12px', padding: '14px', marginBottom: '14px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                            <Wifi size={14} color="#0284C7" />
+                            <span style={{ fontSize: '12px', fontWeight: 800, color: '#0284C7', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Firebase Cloud Sync</span>
+                            <span style={{ fontSize: '10px', background: '#0284C7', color: '#FFF', borderRadius: '999px', padding: '1px 7px', fontWeight: 700 }}>LIVE</span>
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#475569', marginBottom: '12px' }}>
+                            Push all data to Firestore or restore from your latest cloud snapshot.
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                            <button
+                                type="button"
+                                disabled={cloudLoading !== null}
+                                onClick={async () => {
+                                    setCloudLoading('push');
+                                    setCloudMsg('Syncing to Firebase cloud...');
+                                    const result = await Store.syncWithFirestore();
+                                    setCloudLoading(null);
+                                    if (result.success) {
+                                        setCloudMsg(`✓ Synced to cloud at ${new Date(result.timestamp || '').toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}`);
+                                    } else {
+                                        setCloudMsg(`✗ Sync failed: ${result.error || 'Network error'}`);
+                                    }
+                                    setTimeout(() => setCloudMsg(''), 5000);
+                                }}
+                                style={{
+                                    padding: '10px',
+                                    borderRadius: '10px',
+                                    border: 'none',
+                                    background: cloudLoading === 'push' ? '#7DD3FC' : '#0284C7',
+                                    color: '#FFFFFF',
+                                    fontSize: '12.5px',
+                                    fontWeight: 800,
+                                    cursor: cloudLoading !== null ? 'not-allowed' : 'pointer',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    gap: '3px',
+                                    opacity: cloudLoading !== null && cloudLoading !== 'push' ? 0.5 : 1
+                                }}
+                            >
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                    {cloudLoading === 'push' ? <RefreshCw size={14} /> : <Upload size={14} />}
+                                    {cloudLoading === 'push' ? 'Syncing...' : 'Backup Now'}
+                                </span>
+                                <span style={{ fontSize: '10px', opacity: 0.85 }}>Push to Firestore</span>
+                            </button>
+
+                            <button
+                                type="button"
+                                disabled={cloudLoading !== null}
+                                onClick={async () => {
+                                    if (!window.confirm('This will overwrite ALL local data with the latest cloud backup. Are you sure?')) return;
+                                    setCloudLoading('pull');
+                                    setCloudMsg('Pulling from Firebase cloud...');
+                                    const result = await Store.restoreFromCloud();
+                                    setCloudLoading(null);
+                                    if (result.success) {
+                                        setCloudMsg('✓ Local data restored from cloud backup!');
+                                        setSettings(Store.getSettings());
+                                    } else {
+                                        setCloudMsg(`✗ Restore failed: ${result.error || 'No snapshot found'}`);
+                                    }
+                                    setTimeout(() => setCloudMsg(''), 5000);
+                                }}
+                                style={{
+                                    padding: '10px',
+                                    borderRadius: '10px',
+                                    border: '1px solid #BAE6FD',
+                                    background: cloudLoading === 'pull' ? '#E0F2FE' : '#F0F9FF',
+                                    color: '#0284C7',
+                                    fontSize: '12.5px',
+                                    fontWeight: 800,
+                                    cursor: cloudLoading !== null ? 'not-allowed' : 'pointer',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    gap: '3px',
+                                    opacity: cloudLoading !== null && cloudLoading !== 'pull' ? 0.5 : 1
+                                }}
+                            >
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                    {cloudLoading === 'pull' ? <RefreshCw size={14} /> : <Download size={14} />}
+                                    {cloudLoading === 'pull' ? 'Restoring...' : 'Restore Cloud'}
+                                </span>
+                                <span style={{ fontSize: '10px', opacity: 0.85 }}>Pull from Firestore</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px', fontSize: '12px', color: '#64748B' }}>
                         <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#F95721' }} />
-                        <span>Automatic Cloud Backup</span> • <span>Daily at 23:59 WAT</span>
+                        <span>Local JSON Backup</span> • <span>Download as cold storage file</span>
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '16px' }}>
