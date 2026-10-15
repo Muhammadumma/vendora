@@ -29,9 +29,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigate }) => {
 
     const sales = Store.getSales();
     const products = Store.getProducts();
-    const totalRevenue = sales.reduce((sum, s) => sum + (Number(s.total) || 0), 0) || 94600;
-    const inventoryValuation = Store.getTotalStockValue() || 136000;
-    const ordersCount = sales.length || 1;
+    const totalRevenue = sales.reduce((sum, s) => sum + (Number(s.total) || 0), 0);
+    const inventoryValuation = Store.getTotalStockValue();
+    const ordersCount = sales.length;
 
     const quickPrompts = [
         { icon: TrendingUp, text: "What is our top revenue and margin driver?" },
@@ -118,9 +118,6 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigate }) => {
                             <Tag size={14} color="#64748B" />
                             LIVE REVENUE
                         </div>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '3px', padding: '2px 8px', borderRadius: '10px', background: '#ECFDF5', color: '#10B981', fontSize: '11px', fontWeight: 800 }}>
-                            ↗ +18.4%
-                        </span>
                     </div>
 
                     <div style={{ fontSize: '28px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em', marginBottom: '4px' }}>
@@ -128,7 +125,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigate }) => {
                     </div>
 
                     <div style={{ fontSize: '12px', color: '#64748B' }}>
-                        1 sale completed today • Average basket ₦{totalRevenue.toLocaleString()}
+                        {ordersCount} {ordersCount === 1 ? 'sale' : 'sales'} completed • Average basket ₦{ordersCount > 0 ? Math.round(totalRevenue / ordersCount).toLocaleString() : '0'}
                     </div>
 
                     {/* SVG Curve */}
@@ -150,7 +147,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigate }) => {
                         <div style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A', marginTop: '2px' }}>
                             ₦{inventoryValuation.toLocaleString()}
                         </div>
-                        <div style={{ fontSize: '11px', color: '#64748B' }}>{products.length || 48} SKUs tracked</div>
+                        <div style={{ fontSize: '11px', color: '#64748B' }}>{products.length} SKUs tracked</div>
                     </div>
 
                     <div className="card" style={{ padding: '14px', borderRadius: '16px', background: '#FFFFFF', border: '1px solid #EDF2F7' }}>
@@ -160,9 +157,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigate }) => {
                         </div>
                         <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '2px' }}>ORDERS LOGGED</div>
                         <div style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A', marginTop: '2px' }}>
-                            {ordersCount} order
+                            {ordersCount} {ordersCount === 1 ? 'order' : 'orders'}
                         </div>
-                        <div style={{ fontSize: '11px', color: '#EA580C', fontWeight: 600 }}>Wholesale bulk sale</div>
+                        <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>Total Completed</div>
                     </div>
                 </div>
             </div>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Menu, RefreshCw, LogOut } from 'lucide-react';
+import { Menu, RefreshCw, LogOut, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Store } from '../core/store';
 
 interface TopBarProps {
     title: string;
@@ -20,6 +21,7 @@ export const TopBar: React.FC<TopBarProps> = ({
 }) => {
     const [searchValue, setSearchValue] = useState('');
     const [syncSuccess, setSyncSuccess] = useState(false);
+    const [syncMessage, setSyncMessage] = useState<string | null>(null);
 
     const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const val = e.target.value;
@@ -31,9 +33,19 @@ export const TopBar: React.FC<TopBarProps> = ({
     };
 
     const handleSyncClick = async () => {
+        setSyncMessage(null);
         await onSync();
-        setSyncSuccess(true);
-        setTimeout(() => setSyncSuccess(false), 1500);
+        if (Store.state.lastSyncError) {
+            setSyncMessage(Store.state.lastSyncError);
+            setTimeout(() => setSyncMessage(null), 6000);
+        } else {
+            setSyncSuccess(true);
+            setSyncMessage('Cloud sync complete!');
+            setTimeout(() => {
+                setSyncSuccess(false);
+                setSyncMessage(null);
+            }, 3000);
+        }
     };
 
     return (
@@ -87,13 +99,37 @@ export const TopBar: React.FC<TopBarProps> = ({
                         onChange={handleSearchChange}
                     />
                 </div>
+                {syncMessage && (
+                    <div
+                        style={{
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            padding: '4px 10px',
+                            borderRadius: '20px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            background: syncSuccess ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+                            color: syncSuccess ? 'var(--success-color)' : 'var(--danger-color)',
+                            border: `1px solid ${syncSuccess ? 'rgba(16, 185, 129, 0.25)' : 'rgba(239, 68, 68, 0.25)'}`,
+                            maxWidth: '260px',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                        }}
+                        title={syncMessage}
+                    >
+                        {syncSuccess ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
+                        <span>{syncMessage}</span>
+                    </div>
+                )}
                 <button
                     className="icon-btn"
                     id="sync-btn"
                     title={isSyncing ? "Syncing..." : "Sync with Cloud"}
                     onClick={handleSyncClick}
                     disabled={isSyncing}
-                    style={{ color: syncSuccess ? 'var(--success-color)' : undefined }}
+                    style={{ color: syncSuccess ? 'var(--success-color)' : Store.state.lastSyncError ? 'var(--danger-color)' : undefined }}
                     type="button"
                 >
                     <RefreshCw

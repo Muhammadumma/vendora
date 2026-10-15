@@ -49,10 +49,10 @@ export const DebtsView: React.FC = () => {
         return () => unsubscribe();
     }, []);
 
-    const totalStockValue = Store.getTotalStockValue() || 136000;
-    const activeDebtTotal = Store.getActiveDebtTotal() || 14400;
-    const maxCreditCeiling = Math.round(totalStockValue * 0.3) || 40800;
-    const exposureRatio = maxCreditCeiling > 0 ? Math.min(100, Math.round((activeDebtTotal / maxCreditCeiling) * 100)) : 4;
+    const totalStockValue = Store.getTotalStockValue();
+    const activeDebtTotal = Store.getActiveDebtTotal();
+    const maxCreditCeiling = Math.round(totalStockValue * 0.3);
+    const exposureRatio = maxCreditCeiling > 0 ? Math.min(100, Math.round((activeDebtTotal / maxCreditCeiling) * 100)) : 0;
 
     const activeDebts = debts.filter(d => d.status !== 'Paid' && d.status !== 'Settled');
 
@@ -124,11 +124,22 @@ export const DebtsView: React.FC = () => {
         const cleanPhone = (debt.phone || '').replace(/[^0-9]/g, '');
         const message = `Hello ${debt.debtor}, this is a gentle reminder from ${Store.getSettings().businessName} regarding your outstanding balance of ₦${Number(debt.amount).toLocaleString()} for ${debt.product}. Due date: ${debt.dueDate ? debt.dueDate.split('T')[0] : 'soon'}. Thank you!`;
         const encoded = encodeURIComponent(message);
+
+        // Store reminder message directly in Firestore DB
+        Store.recordMessage({
+            type: 'debt_reminder',
+            recipient: debt.debtor,
+            phone: debt.phone,
+            text: message,
+            debtId: debt.id,
+            amount: debt.amount
+        });
+
         if (cleanPhone) {
             window.open(`https://wa.me/${cleanPhone}?text=${encoded}`, '_blank');
         } else {
             navigator.clipboard.writeText(message);
-            setFeedbackMsg('Reminder copied to clipboard');
+            setFeedbackMsg('Reminder copied & saved to database');
             setTimeout(() => setFeedbackMsg(''), 2500);
         }
     };
@@ -146,7 +157,7 @@ export const DebtsView: React.FC = () => {
                 d.status
             ])
         ];
-        Utils.downloadCSV(rows, `Vendora_Debts_${new Date().toISOString().split('T')[0]}.csv`);
+        Utils.downloadCSV(rows, `RoyalVazier_Debts_${new Date().toISOString().split('T')[0]}.csv`);
     };
 
     return (
@@ -181,9 +192,14 @@ export const DebtsView: React.FC = () => {
                 <div style={{ fontSize: '26px', fontWeight: 800, color: '#DC2626', letterSpacing: '-0.02em', margin: '4px 0 2px' }}>
                     ₦{activeDebtTotal.toLocaleString()}
                 </div>
-                <div style={{ fontSize: '12px', color: '#64748B', fontWeight: 500 }}>
-                    {exposureRatio}% of Credit Limit Used
-                </div>
+                {activeDebtTotal > 0 && maxCreditCeiling > 0 && (
+                    <div style={{ fontSize: '12px', color: '#64748B', fontWeight: 500 }}>
+                        {exposureRatio}% of credit limit used
+                    </div>
+                )}
+                {activeDebtTotal === 0 && (
+                    <div style={{ fontSize: '12px', color: '#10B981', fontWeight: 600 }}>No outstanding debts</div>
+                )}
             </div>
 
             {/* Quick Actions */}

@@ -275,7 +275,7 @@ High Threshold Warning,Pantry,SKU-HIGHTHRESH-01,10,2000,2500,Supplier,999`;
                             style={{ width: '100%', fontSize: '13.5px', fontWeight: 600, height: '38px', padding: '8px 10px' }}
                             value={title}
                             onChange={e => setTitle(e.target.value)}
-                            placeholder="e.g. Golden Penny Semovita 10kg"
+                            placeholder="e.g. Product Name"
                             required
                         />
                     </div>
@@ -295,24 +295,15 @@ High Threshold Warning,Pantry,SKU-HIGHTHRESH-01,10,2000,2500,Supplier,999`;
                         </div>
                         <div>
                             <label className="label" style={{ fontSize: '11.5px', marginBottom: '3px' }}>Item Code / SKU</label>
-                            <div style={{ position: 'relative' }}>
-                                <input
-                                    type="text"
-                                    className="search-input"
-                                    style={{ width: '100%', paddingRight: '32px', height: '38px', fontSize: '12.5px', padding: '6px 8px' }}
-                                    value={sku}
-                                    onChange={e => setSku(e.target.value)}
-                                    placeholder="SKU-1001"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setSku(`SKU-${Math.floor(1000 + Math.random() * 9000)}`)}
-                                    style={{ position: 'absolute', right: '6px', top: '8px', background: 'none', border: 'none', cursor: 'pointer', padding: '2px' }}
-                                    title="Generate new SKU"
-                                >
-                                    <Scan size={14} color="#64748B" />
-                                </button>
-                            </div>
+                            <input
+                                type="text"
+                                className="search-input"
+                                style={{ width: '100%', height: '38px', fontSize: '12.5px', padding: '6px 8px' }}
+                                value={sku}
+                                onChange={e => setSku(e.target.value)}
+                                placeholder="Scan or type barcode"
+                                autoComplete="off"
+                            />
                         </div>
                     </div>
 
@@ -326,7 +317,7 @@ High Threshold Warning,Pantry,SKU-HIGHTHRESH-01,10,2000,2500,Supplier,999`;
                                 style={{ width: '100%', height: '38px', fontSize: '13.5px', fontWeight: 700, padding: '6px 8px' }}
                                 value={unitCost}
                                 onChange={e => setUnitCost(e.target.value)}
-                                placeholder="7900"
+                                placeholder="0"
                                 min="0"
                                 required
                             />
@@ -339,7 +330,7 @@ High Threshold Warning,Pantry,SKU-HIGHTHRESH-01,10,2000,2500,Supplier,999`;
                                 style={{ width: '100%', height: '38px', fontSize: '13.5px', fontWeight: 700, color: '#F95721', padding: '6px 8px' }}
                                 value={sellingPrice}
                                 onChange={e => setSellingPrice(e.target.value)}
-                                placeholder="9200"
+                                placeholder="0"
                                 min="0"
                                 required
                             />

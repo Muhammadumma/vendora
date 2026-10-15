@@ -6,8 +6,7 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 3000",
     "build": "tsc && vite build",
-    "preview": "vite preview --host 0.0.0.0 --port 3000",
-    "start": "serve -s dist -l 10000"
+    "preview": "vite preview --host 0.0.0.0 --port 3000"
   },
   "dependencies": {
     "@types/papaparse": "^5.5.2",
@@ -18,8 +17,7 @@
     "lucide-react": "^1.53.0",
     "papaparse": "^5.7.0",
     "react": "^19.3.0",
-    "react-dom": "^19.3.0",
-    "serve": "^14.2.4"
+    "react-dom": "^19.3.0"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",

@@ -89,7 +89,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate }) => {
                 ];
             })
         ];
-        Utils.downloadCSV(rows, `Vendora_Inventory_${new Date().toISOString().split('T')[0]}.csv`);
+        Utils.downloadCSV(rows, `RoyalVazier_Inventory_${new Date().toISOString().split('T')[0]}.csv`);
     };
 
     const handleSaveEdit = (e: React.FormEvent) => {

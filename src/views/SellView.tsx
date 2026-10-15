@@ -24,13 +24,20 @@ import {
     Calendar,
     AlertCircle,
     MapPin,
-    FileText
+    FileText,
+    History,
+    Receipt
 } from 'lucide-react';
 import { Store, Product, SaleItem, Sale } from '../core/store';
 import { Utils } from '../core/utils';
 import { ReceiptTicket } from '../components/ReceiptTicket';
 
 export const SellView: React.FC = () => {
+    const [activeTab, setActiveTab] = useState<'sell' | 'history'>('sell');
+    const [historySearch, setHistorySearch] = useState('');
+    const [historyFilter, setHistoryFilter] = useState<'all' | 'today' | 'week'>('all');
+    const [sales, setSales] = useState<Sale[]>(Store.getSales());
+    const [historyReceipt, setHistoryReceipt] = useState<Sale | null>(null);
     const [products, setProducts] = useState<Product[]>(Store.getProducts());
     const [search, setSearch] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('All');
@@ -59,7 +66,10 @@ export const SellView: React.FC = () => {
     const [debtorError, setDebtorError] = useState('');
 
     useEffect(() => {
-        const update = () => setProducts([...Store.getProducts()]);
+        const update = () => {
+            setProducts([...Store.getProducts()]);
+            setSales([...Store.getSales()]);
+        };
         const unsubscribe = Store.subscribe(update);
         return () => unsubscribe();
     }, []);
@@ -241,13 +251,217 @@ export const SellView: React.FC = () => {
         }
     };
 
+    // Filter sales for history tab
+    const todayStr = new Date().toISOString().split('T')[0];
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const filteredSales = [...sales].reverse().filter(s => {
+        const q = historySearch.trim().toLowerCase();
+        const matchQ = !q ||
+            (s.customerName || '').toLowerCase().includes(q) ||
+            s.id.toLowerCase().includes(q) ||
+            (s.paymentMethod || '').toLowerCase().includes(q);
+        const matchDate =
+            historyFilter === 'today' ? s.date.startsWith(todayStr) :
+            historyFilter === 'week' ? s.date >= weekAgo :
+            true;
+        return matchQ && matchDate;
+    });
+
     return (
         <div className="fade-in sell-view-page" style={{ paddingBottom: '90px' }}>
-            {/* Header: Short single title, no noise */}
+            {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
                 <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#0F172A', margin: 0 }}>Sell</h1>
                 <span style={{ fontSize: '12px', fontWeight: 700, color: '#64748B' }}>POS #01</span>
             </div>
+
+            {/* Tab Switcher */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px', background: '#F1F5F9', padding: '3px', borderRadius: '12px', marginBottom: '16px' }}>
+                <button
+                    type="button"
+                    onClick={() => setActiveTab('sell')}
+                    style={{
+                        padding: '9px',
+                        borderRadius: '9px',
+                        border: 'none',
+                        background: activeTab === 'sell' ? '#FFFFFF' : 'transparent',
+                        color: activeTab === 'sell' ? '#F95721' : '#64748B',
+                        fontWeight: 800,
+                        fontSize: '13px',
+                        cursor: 'pointer',
+                        boxShadow: activeTab === 'sell' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px'
+                    }}
+                >
+                    <ShoppingBag size={14} /> New Sale
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setActiveTab('history')}
+                    style={{
+                        padding: '9px',
+                        borderRadius: '9px',
+                        border: 'none',
+                        background: activeTab === 'history' ? '#FFFFFF' : 'transparent',
+                        color: activeTab === 'history' ? '#F95721' : '#64748B',
+                        fontWeight: 800,
+                        fontSize: '13px',
+                        cursor: 'pointer',
+                        boxShadow: activeTab === 'history' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px'
+                    }}
+                >
+                    <History size={14} /> History
+                    {sales.length > 0 && (
+                        <span style={{ background: '#F95721', color: '#FFF', borderRadius: '10px', fontSize: '10px', fontWeight: 800, padding: '1px 6px', marginLeft: '2px' }}>
+                            {sales.length}
+                        </span>
+                    )}
+                </button>
+            </div>
+
+            {/* ─── HISTORY TAB ─── */}
+            {activeTab === 'history' && (
+                <div>
+                    {/* Search + Filter */}
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                        <div style={{ flex: 1, position: 'relative' }}>
+                            <input
+                                type="text"
+                                placeholder="Search by customer or sale ID..."
+                                className="search-input"
+                                style={{ width: '100%', paddingLeft: '36px', height: '40px', fontSize: '13px' }}
+                                value={historySearch}
+                                onChange={e => setHistorySearch(e.target.value)}
+                            />
+                            <Search size={15} color="#94A3B8" style={{ position: 'absolute', left: '12px', top: '12px' }} />
+                        </div>
+                        <select
+                            value={historyFilter}
+                            onChange={e => setHistoryFilter(e.target.value as any)}
+                            style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '0 10px', fontSize: '12px', fontWeight: 700, color: '#334155', height: '40px', cursor: 'pointer' }}
+                        >
+                            <option value="all">All Time</option>
+                            <option value="today">Today</option>
+                            <option value="week">This Week</option>
+                        </select>
+                    </div>
+
+                    {/* Summary Strip */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px', marginBottom: '14px' }}>
+                        {[
+                            { label: 'Total Sales', value: filteredSales.length },
+                            { label: 'Revenue', value: `₦${filteredSales.reduce((s, x) => s + (Number(x.total) || 0), 0).toLocaleString()}` },
+                            { label: 'Profit', value: `₦${filteredSales.reduce((s, x) => s + (Number(x.profit) || 0), 0).toLocaleString()}` }
+                        ].map(m => (
+                            <div key={m.label} style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '10px 10px 8px', textAlign: 'center' }}>
+                                <div style={{ fontSize: '10px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '3px' }}>{m.label}</div>
+                                <div style={{ fontSize: '15px', fontWeight: 800, color: '#0F172A' }}>{m.value}</div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Sales List */}
+                    {filteredSales.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: '40px 16px', background: '#F8FAFC', borderRadius: '14px', border: '1px dashed #CBD5E1' }}>
+                            <Receipt size={28} color="#CBD5E1" style={{ marginBottom: '8px' }} />
+                            <div style={{ fontSize: '14px', fontWeight: 700, color: '#94A3B8' }}>No sales found</div>
+                            <div style={{ fontSize: '12px', color: '#CBD5E1', marginTop: '4px' }}>Complete a sale to see it here</div>
+                        </div>
+                    ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {filteredSales.map(sale => (
+                                <div
+                                    key={sale.id}
+                                    style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '12px 14px' }}
+                                >
+                                    {/* Top row */}
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                                        <div style={{ flex: 1, minWidth: 0, marginRight: '10px' }}>
+                                            <div style={{ fontSize: '14px', fontWeight: 800, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                {sale.customerName || 'Walk-in Customer'}
+                                            </div>
+                                            <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '2px' }}>
+                                                {sale.date ? sale.date.split('T')[0] : ''} &nbsp;·&nbsp;
+                                                {sale.items.length} item{sale.items.length !== 1 ? 's' : ''}
+                                            </div>
+                                        </div>
+                                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                                            <div style={{ fontSize: '15px', fontWeight: 800, color: '#0F172A' }}>
+                                                ₦{Number(sale.total).toLocaleString()}
+                                            </div>
+                                            <span style={{
+                                                display: 'inline-block',
+                                                marginTop: '3px',
+                                                fontSize: '10px',
+                                                fontWeight: 700,
+                                                padding: '2px 7px',
+                                                borderRadius: '8px',
+                                                background: sale.paymentMethod === 'Debt' ? '#FEF2F2' : sale.paymentMethod === 'Cash' ? '#F0FDF4' : '#EFF6FF',
+                                                color: sale.paymentMethod === 'Debt' ? '#DC2626' : sale.paymentMethod === 'Cash' ? '#15803D' : '#1D4ED8'
+                                            }}>
+                                                {sale.paymentMethod}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* Profit row */}
+                                    {sale.profit !== undefined && (
+                                        <div style={{ fontSize: '11.5px', color: Number(sale.profit) >= 0 ? '#10B981' : '#DC2626', fontWeight: 700, marginBottom: '8px' }}>
+                                            Profit: ₦{Number(sale.profit).toLocaleString()}
+                                        </div>
+                                    )}
+
+                                    {/* Items preview */}
+                                    <div style={{ fontSize: '11.5px', color: '#64748B', marginBottom: '10px', lineHeight: 1.5 }}>
+                                        {sale.items.slice(0, 3).map((item, i) => (
+                                            <span key={i}>
+                                                {item.name} ×{item.qty}{i < Math.min(sale.items.length, 3) - 1 ? ', ' : ''}
+                                            </span>
+                                        ))}
+                                        {sale.items.length > 3 && <span style={{ color: '#94A3B8' }}> +{sale.items.length - 3} more</span>}
+                                    </div>
+
+                                    {/* Action buttons */}
+                                    <div style={{ display: 'flex', gap: '6px' }}>
+                                        <button
+                                            type="button"
+                                            onClick={() => Utils.printReceipt(sale, Store.getSettings())}
+                                            style={{ flex: 1, padding: '7px', background: '#0F172A', color: '#FFFFFF', border: 'none', borderRadius: '8px', fontSize: '11.5px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}
+                                        >
+                                            <Printer size={13} /> Print
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => Utils.copyReceiptText(sale, Store.getSettings())}
+                                            style={{ flex: 1, padding: '7px', background: '#F1F5F9', color: '#334155', border: '1px solid #E2E8F0', borderRadius: '8px', fontSize: '11.5px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}
+                                        >
+                                            <Copy size={13} /> Copy
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => Utils.shareReceiptWhatsApp(sale, Store.getSettings())}
+                                            style={{ flex: 1, padding: '7px', background: '#DCFCE7', color: '#15803D', border: '1px solid #BBF7D0', borderRadius: '8px', fontSize: '11.5px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}
+                                        >
+                                            <Share2 size={13} /> WhatsApp
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* ─── SELL TAB ─── */}
+            {activeTab === 'sell' && (
+            <>
 
             {/* Scan Feedback Banner */}
             {scanBanner && (
@@ -1087,6 +1301,8 @@ export const SellView: React.FC = () => {
                         </div>
                     </div>
                 </div>
+            )}
+            </>
             )}
         </div>
     );

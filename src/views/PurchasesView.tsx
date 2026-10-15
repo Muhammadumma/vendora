@@ -85,39 +85,14 @@ export const PurchasesView: React.FC = () => {
                 p.supplier || 'Standard Supplier'
             ])
         ];
-        Utils.downloadCSV(rows, `Vendora_Purchases_${new Date().toISOString().split('T')[0]}.csv`);
+        Utils.downloadCSV(rows, `RoyalVazier_Purchases_${new Date().toISOString().split('T')[0]}.csv`);
     };
 
-    const totalSpend = purchases.reduce((sum, p) => sum + (Number(p.totalCost) || 0), 0) || 285000;
-    const totalUnitsRestocked = purchases.reduce((sum, p) => sum + (Number(p.qty) || 0), 0) || 55;
+    const totalSpend = purchases.reduce((sum, p) => sum + (Number(p.totalCost) || 0), 0);
+    const totalUnitsRestocked = purchases.reduce((sum, p) => sum + (Number(p.qty) || 0), 0);
 
-    // Display recent purchases from store or default ledger items if newly started
-    const displayPurchases = purchases.length > 0 ? [...purchases].reverse().slice(0, 5) : [
-        {
-            id: 'PUR-01',
-            productName: 'Mama Gold Rice 50kg',
-            supplier: 'Olam Agro Direct',
-            qty: 25,
-            totalCost: 1125000,
-            date: 'Yesterday'
-        },
-        {
-            id: 'PUR-02',
-            productName: 'Dangote Sugar 50kg',
-            supplier: 'Kano Terminal Hub',
-            qty: 15,
-            totalCost: 645000,
-            date: '14 Feb 2026'
-        },
-        {
-            id: 'PUR-03',
-            productName: 'Golden Penny Flour 50kg',
-            supplier: 'Flour Mills Nig.',
-            qty: 20,
-            totalCost: 780000,
-            date: '10 Feb 2026'
-        }
-    ];
+    // Display the 5 most recent real purchases from the store
+    const displayPurchases = [...purchases].reverse().slice(0, 5);
 
     return (
         <div className="fade-in" style={{ paddingBottom: '40px' }}>
@@ -159,7 +134,7 @@ export const PurchasesView: React.FC = () => {
                 <div className="card" style={{ padding: '10px 12px', borderRadius: '12px', background: '#FFFFFF', border: '1px solid #EDF2F7', textAlign: 'center' }}>
                     <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 700 }}>Batches</div>
                     <div style={{ fontSize: '17px', fontWeight: 800, color: '#0F172A', margin: '3px 0 1px' }}>
-                        {purchases.length || 12}
+                        {purchases.length}
                     </div>
                     <div style={{ fontSize: '10.5px', color: '#94A3B8' }}>Restocks logged</div>
                 </div>
@@ -308,6 +283,13 @@ export const PurchasesView: React.FC = () => {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
+                    {displayPurchases.length === 0 && (
+                        <div style={{ textAlign: 'center', padding: '32px 16px', background: '#F8FAFC', borderRadius: '12px', border: '1px dashed #CBD5E1' }}>
+                            <Truck size={28} color="#CBD5E1" style={{ marginBottom: '8px' }} />
+                            <div style={{ fontSize: '14px', fontWeight: 700, color: '#94A3B8' }}>No purchases recorded yet</div>
+                            <div style={{ fontSize: '12px', color: '#CBD5E1', marginTop: '4px' }}>Record your first restock above to see it here</div>
+                        </div>
+                    )}
                     {displayPurchases.map((item, idx) => (
                         <div
                             key={idx}

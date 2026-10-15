@@ -49,7 +49,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     // Metrics calculation
     const today = selectedDate;
     const todaysSalesData = sales.filter(s => s.date.startsWith(today));
-    const todaysSales = todaysSalesData.reduce((sum, s) => sum + (Number(s.total) || 0), 0) || 94600;
+    const todaysSales = todaysSalesData.reduce((sum, s) => sum + (Number(s.total) || 0), 0);
 
     const todaysProfit = todaysSalesData.reduce((totalProfit, sale) => {
         const saleProfit = sale.items.reduce((sum, item) => {
@@ -58,11 +58,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
             return sum + (rev - cost);
         }, 0);
         return totalProfit + saleProfit;
-    }, 0) || 12000;
+    }, 0);
 
     const lowStockItems = products.filter(p => Number(p.qty) <= 4);
-    const totalOrdersCount = todaysSalesData.length || 1;
-    const profitMargin = todaysSales > 0 ? ((todaysProfit / todaysSales) * 100).toFixed(1) : '12.7';
+    const totalOrdersCount = todaysSalesData.length;
+    const profitMargin = todaysSales > 0 ? ((todaysProfit / todaysSales) * 100).toFixed(1) : '0.0';
 
     // Direct 1-tap Restock action
     const handleQuickRestock = (product: Product) => {
@@ -233,7 +233,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
                     <div style={{ fontSize: '20px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em', lineHeight: 1 }}>
                         ₦{todaysSales.toLocaleString()}
                     </div>
-                    <div style={{ fontSize: '11px', color: '#047857', fontWeight: 700, marginTop: '5px' }}>+14%</div>
+                    <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 600, marginTop: '5px' }}>
+                        {totalOrdersCount > 0 ? `${totalOrdersCount} order${totalOrdersCount !== 1 ? 's' : ''}` : 'No sales today'}
+                    </div>
                 </div>
 
                 {/* Profit */}
@@ -258,8 +260,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
                             <Package size={13} color="#DC2626" />
                         </div>
                     </div>
-                    <div style={{ fontSize: '22px', fontWeight: 800, color: '#DC2626', letterSpacing: '-0.02em', lineHeight: 1 }}>
-                        {lowStockItems.length || 2}
+                    <div style={{ fontSize: '22px', fontWeight: 800, color: lowStockItems.length > 0 ? '#DC2626' : '#64748B', letterSpacing: '-0.02em', lineHeight: 1 }}>
+                        {lowStockItems.length}
                     </div>
                 </div>
 
@@ -277,71 +279,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
                 </div>
             </div>
 
-            {/* Actionable Low Stock List — Tap 'Restock' directly without leaving dashboard */}
-            <div style={{ marginBottom: '18px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <h3 style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A', margin: 0 }}>Low Stock</h3>
-                    <span
-                        onClick={() => { window.location.hash = '#inventory'; onNavigate('inventory'); }}
-                        style={{ fontSize: '11px', color: '#0F172A', fontWeight: 700, cursor: 'pointer' }}
-                    >
-                        All
-                    </span>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    {lowStockItems.length > 0 ? lowStockItems.slice(0, 3).map(item => (
-                        <div
-                            key={item.id}
-                            style={{
-                                background: '#FFFFFF',
-                                border: '1px solid #E2E8F0',
-                                borderRadius: '10px',
-                                padding: '10px 12px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between'
-                            }}
-                        >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
-                                <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: '#FEF2F2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                    <Package size={14} color="#DC2626" />
-                                </div>
-                                <div style={{ minWidth: 0 }}>
-                                    <div style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</div>
-                                    <div style={{ fontSize: '11px', color: '#64748B', marginTop: '1px' }}>{item.category || 'Stock'}</div>
-                                </div>
-                            </div>
-
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0, marginLeft: '8px' }}>
-                                <span style={{ fontSize: '11px', fontWeight: 800, color: '#DC2626', background: '#FEF2F2', padding: '3px 7px', borderRadius: '6px' }}>
-                                    {item.qty} left
-                                </span>
-                                <button
-                                    type="button"
-                                    onClick={() => handleQuickRestock(item)}
-                                    style={{
-                                        background: '#0F172A',
-                                        color: '#FFFFFF',
-                                        border: 'none',
-                                        borderRadius: '7px',
-                                        padding: '5px 10px',
-                                        fontSize: '11px',
-                                        fontWeight: 700,
-                                        cursor: 'pointer'
-                                    }}
-                                >
-                                    Restock
-                                </button>
-                            </div>
-                        </div>
-                    )) : (
-                        <div style={{ padding: '16px', textAlign: 'center', color: '#94A3B8', fontSize: '12px', fontWeight: 600 }}>
-                            No low stock items
-                        </div>
-                    )}
-                </div>
-            </div>
 
             {/* Sales Chart */}
             <div className="card" style={{ padding: '14px 16px', borderRadius: '12px', background: '#FFFFFF', border: '1px solid #E2E8F0', marginBottom: '16px' }}>
@@ -402,7 +339,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
                             </div>
                             <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
                                 <div style={{ fontSize: '13px', fontWeight: 800, color: '#0F172A' }}>
-                                    +{Utils.formatCurrency(sale.total || 94600)}
+                                    +{Utils.formatCurrency(sale.total || 0)}
                                 </div>
                                 <button
                                     type="button"

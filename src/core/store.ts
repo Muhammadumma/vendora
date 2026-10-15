@@ -134,8 +134,23 @@ class StoreClass {
             }
             return { ...defaultRoyalvazierSettings, ...saved, businessLogo: saved.businessLogo || '/royalvazier-logo.png' };
         })() as Settings,
-        isSyncing: false
+        isSyncing: false,
+        lastSyncTimestamp: null as string | null,
+        lastSyncError: null as string | null
     };
+
+    private autoSyncTimer: any = null;
+
+    queueAutoSync() {
+        // Debounce sync and avoid looping if a sync is already running
+        if (this.state.isSyncing) return;
+        if (this.autoSyncTimer) clearTimeout(this.autoSyncTimer);
+        this.autoSyncTimer = setTimeout(() => {
+            if (!this.state.isSyncing) {
+                this.syncWithFirestore().catch(err => console.warn('Auto cloud sync notice:', err));
+            }
+        }, 3000);
+    }
 
     subscribe(listener: Listener): () => void {
         this.listeners.add(listener);
@@ -291,6 +306,8 @@ class StoreClass {
 
         this._save('bc_products', this.state.products);
         this.notify();
+        FirebaseSync.syncProduct(newProd).catch(e => console.warn("Firestore product sync:", e));
+        this.queueAutoSync();
         return newProd;
     }
 
@@ -300,6 +317,8 @@ class StoreClass {
             const addedItem = this.addProduct(item);
             added.push(addedItem);
         }
+        FirebaseSync.syncProductsBatch(added).catch(e => console.warn("Firestore batch product sync:", e));
+        this.queueAutoSync();
         return added;
     }
 
@@ -309,6 +328,8 @@ class StoreClass {
             this.state.products[index] = { ...this.state.products[index], ...updates };
             this._save('bc_products', this.state.products);
             this.notify();
+            FirebaseSync.syncProduct(this.state.products[index]).catch(e => console.warn("Firestore product update sync:", e));
+            this.queueAutoSync();
         }
     }
 
@@ -316,6 +337,8 @@ class StoreClass {
         this.state.products = this.state.products.filter(p => p.id !== id);
         this._save('bc_products', this.state.products);
         this.notify();
+        FirebaseSync.deleteProduct(id).catch(e => console.warn("Firestore product delete sync:", e));
+        this.queueAutoSync();
     }
 
     // Sales
@@ -377,6 +400,8 @@ class StoreClass {
         }
 
         this.notify();
+        FirebaseSync.syncSale(sale).catch(e => console.warn("Firestore sale sync:", e));
+        this.queueAutoSync();
         return sale;
     }
 
@@ -405,6 +430,8 @@ class StoreClass {
         }
 
         this.notify();
+        FirebaseSync.syncPurchase(purchase).catch(e => console.warn("Firestore purchase sync:", e));
+        this.queueAutoSync();
         return purchase;
     }
 
@@ -436,6 +463,8 @@ class StoreClass {
         this.state.debts.push(debt);
         this._save('bc_debts', this.state.debts);
         this.notify();
+        FirebaseSync.syncDebt(debt).catch(e => console.warn("Firestore debt sync:", e));
+        this.queueAutoSync();
         return true;
     }
 
@@ -451,6 +480,8 @@ class StoreClass {
             this.state.debts[index] = { ...this.state.debts[index], ...updates };
             this._save('bc_debts', this.state.debts);
             this.notify();
+            FirebaseSync.syncDebt(this.state.debts[index]).catch(e => console.warn("Firestore debt update sync:", e));
+            this.queueAutoSync();
         }
     }
 
@@ -485,6 +516,9 @@ class StoreClass {
             this._save('bc_sales', this.state.sales);
             this._save('bc_debts', this.state.debts);
             this.notify();
+            FirebaseSync.syncDebt(debt).catch(e => console.warn("Firestore debt settle sync:", e));
+            FirebaseSync.syncSale(settlementSale).catch(e => console.warn("Firestore settlement sale sync:", e));
+            this.queueAutoSync();
             return settlementSale;
         }
         return null;
@@ -526,6 +560,8 @@ class StoreClass {
         }
         this._save('bc_settings', this.state.settings);
         this.notify();
+        FirebaseSync.syncSettings(this.state.settings).catch(e => console.warn("Firestore settings sync:", e));
+        this.queueAutoSync();
     }
 
     // Audit Log
@@ -542,6 +578,17 @@ class StoreClass {
 
     getAuditLog() {
         return JSON.parse(localStorage.getItem('bc_audit_log') || '[]');
+    }
+
+    // Messages & Reminders
+    recordMessage(msg: { text: string; recipient?: string; type?: string; [key: string]: any }) {
+        const message = {
+            id: 'MSG-' + Date.now(),
+            ...msg,
+            timestamp: new Date().toISOString()
+        };
+        FirebaseSync.syncMessage(message).catch(e => console.warn("Firestore message sync notice:", e));
+        return message;
     }
 
     // Backup & Restore
@@ -561,7 +608,7 @@ class StoreClass {
         const blob = new Blob([json], { type: 'application/json' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = `Vendora_Backup_${new Date().toISOString().split('T')[0]}.json`;
+        a.download = `RoyalVazier_Backup_${new Date().toISOString().split('T')[0]}.json`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -598,9 +645,34 @@ class StoreClass {
         }
     }
 
-    async syncWithFirestore(): Promise<{ success: boolean; timestamp?: string; error?: string }> {
-        this.state.isSyncing = true;
+    clearAllData() {
+        this.state.products = [];
+        this.state.sales = [];
+        this.state.purchases = [];
+        this.state.debts = [];
+        this._save('bc_products', []);
+        this._save('bc_sales', []);
+        this._save('bc_purchases', []);
+        this._save('bc_debts', []);
         this.notify();
+    }
+
+    async syncWithFirestore(): Promise<{ success: boolean; timestamp?: string; error?: string }> {
+        if (this.state.isSyncing) {
+            return { success: false, error: 'Sync already in progress' };
+        }
+        this.state.isSyncing = true;
+        this.state.lastSyncError = null;
+        this.notify();
+
+        // Safety fallback timer: guarantee isSyncing resets after 30s max
+        const safetyTimer = setTimeout(() => {
+            if (this.state.isSyncing) {
+                this.state.isSyncing = false;
+                this.notify();
+            }
+        }, 30000);
+
         try {
             const result = await FirebaseSync.pushStoreSnapshot({
                 products: this.state.products,
@@ -609,13 +681,20 @@ class StoreClass {
                 purchases: this.state.purchases,
                 settings: this.state.settings
             });
-            this.state.isSyncing = false;
-            this.notify();
+            if (result.success) {
+                this.state.lastSyncTimestamp = result.timestamp || new Date().toISOString();
+                this.state.lastSyncError = null;
+            } else {
+                this.state.lastSyncError = result.error || 'Sync failed';
+            }
             return result;
         } catch (err: any) {
+            this.state.lastSyncError = err.message || 'Sync failed';
+            return { success: false, error: err.message };
+        } finally {
+            clearTimeout(safetyTimer);
             this.state.isSyncing = false;
             this.notify();
-            return { success: false, error: err.message };
         }
     }
 

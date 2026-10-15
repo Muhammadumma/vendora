@@ -18,7 +18,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ user, onOpenSettings }) =>
                 <div className="brand-logo-badge" style={{ overflow: 'hidden' }}>
                     <img
                         src="/logo.png"
-                        alt="Vendora Logo"
+                        alt="Royalvazier Logo"
                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                         onError={(e) => {
                             (e.currentTarget as HTMLElement).style.display = 'none';
@@ -28,7 +28,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ user, onOpenSettings }) =>
                 </div>
                 <div>
                     <div className="brand-title-row">
-                        <span className="brand-name">Vendora</span>
+                        <span className="brand-name">Royalvazier</span>
                     </div>
                     <div className="brand-subtext">{email}</div>
                 </div>

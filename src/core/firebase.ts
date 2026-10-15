@@ -1,6 +1,6 @@
 // Royalvazier Global Services Ltd - Firebase Cloud Integration
 import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
-import { getFirestore, Firestore, collection, doc, setDoc, getDocs, getDoc, writeBatch } from "firebase/firestore";
+import { getFirestore, Firestore, collection, doc, setDoc, getDocs, getDoc, writeBatch, deleteDoc } from "firebase/firestore";
 import { 
   getAuth, 
   Auth,
@@ -31,7 +31,8 @@ export const firebaseConfig = {
 
 // Initialize Firebase Core
 export const app: FirebaseApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-export const db: Firestore = getFirestore(app);
+// Connect to the 'default' database created in Firebase Console
+export const db: Firestore = getFirestore(app, "default");
 export const auth: Auth = getAuth(app);
 export const storage: FirebaseStorage = getStorage(app);
 
@@ -168,6 +169,8 @@ export const FirebaseAuthService = {
         return 'Network connection issue. Please check your internet connection.';
       case 'auth/operation-not-allowed':
         return 'This authentication method is currently disabled in your Firebase console. Please enable Email/Password or Google provider in Firebase Authentication.';
+      case 'auth/unauthorized-domain':
+        return 'Unauthorized domain. Please visit using "localhost:3000" or add your current host/domain in Firebase Console > Authentication > Settings > Authorized domains.';
       case 'auth/requires-recent-login':
         return 'Please sign out and sign in again to complete this security action.';
       default:
@@ -177,11 +180,158 @@ export const FirebaseAuthService = {
 };
 
 /**
- * Cloud Firestore Sync Utilities for Royalvazier
+ * Cloud Firestore Sync Utilities for Royalvazier Vendora
  */
 export const FirebaseSync = {
   /**
-   * Sync complete store snapshot to Firestore cloud backup
+   * Real-time sync for a single product to the 'products' collection
+   */
+  async syncProduct(product: any): Promise<boolean> {
+    if (!product || !product.id) return false;
+    try {
+      const prodRef = doc(db, "products", String(product.id));
+      await setDoc(prodRef, {
+        ...product,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+      return true;
+    } catch (err: any) {
+      console.error("Firestore syncProduct error:", err);
+      return false;
+    }
+  },
+
+  /**
+   * Delete a single product from the 'products' collection
+   */
+  async deleteProduct(productId: string): Promise<boolean> {
+    if (!productId) return false;
+    try {
+      const prodRef = doc(db, "products", String(productId));
+      await deleteDoc(prodRef);
+      return true;
+    } catch (err: any) {
+      console.error("Firestore deleteProduct error:", err);
+      return false;
+    }
+  },
+
+  /**
+   * Batch sync multiple products
+   */
+  async syncProductsBatch(products: any[]): Promise<boolean> {
+    if (!Array.isArray(products) || products.length === 0) return true;
+    try {
+      const batch = writeBatch(db);
+      for (const item of products) {
+        if (!item || !item.id) continue;
+        const ref = doc(db, "products", String(item.id));
+        batch.set(ref, {
+          ...item,
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+      }
+      await batch.commit();
+      return true;
+    } catch (err: any) {
+      console.error("Firestore syncProductsBatch error:", err);
+      return false;
+    }
+  },
+
+  /**
+   * Sync single sale in real time to the 'sales' collection
+   */
+  async syncSale(sale: any): Promise<boolean> {
+    if (!sale || !sale.id) return false;
+    try {
+      const saleRef = doc(db, "sales", String(sale.id));
+      await setDoc(saleRef, {
+        ...sale,
+        syncedAt: new Date().toISOString()
+      }, { merge: true });
+      return true;
+    } catch (err: any) {
+      console.error("Firestore syncSale error:", err);
+      return false;
+    }
+  },
+
+  /**
+   * Sync single debt in real time to the 'debts' collection
+   */
+  async syncDebt(debt: any): Promise<boolean> {
+    if (!debt || !debt.id) return false;
+    try {
+      const debtRef = doc(db, "debts", String(debt.id));
+      await setDoc(debtRef, {
+        ...debt,
+        syncedAt: new Date().toISOString()
+      }, { merge: true });
+      return true;
+    } catch (err: any) {
+      console.error("Firestore syncDebt error:", err);
+      return false;
+    }
+  },
+
+  /**
+   * Sync single purchase in real time to the 'purchases' collection
+   */
+  async syncPurchase(purchase: any): Promise<boolean> {
+    if (!purchase || !purchase.id) return false;
+    try {
+      const purRef = doc(db, "purchases", String(purchase.id));
+      await setDoc(purRef, {
+        ...purchase,
+        syncedAt: new Date().toISOString()
+      }, { merge: true });
+      return true;
+    } catch (err: any) {
+      console.error("Firestore syncPurchase error:", err);
+      return false;
+    }
+  },
+
+  /**
+   * Sync settings to 'settings' collection
+   */
+  async syncSettings(settings: any): Promise<boolean> {
+    try {
+      const setRef = doc(db, "settings", "general");
+      await setDoc(setRef, {
+        ...settings,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+      return true;
+    } catch (err: any) {
+      console.error("Firestore syncSettings error:", err);
+      return false;
+    }
+  },
+
+  /**
+   * Sync reminder or activity message to 'messages' collection in Firestore
+   */
+  async syncMessage(messageData: any): Promise<boolean> {
+    if (!messageData) return false;
+    try {
+      const msgId = messageData.id || `MSG-${Date.now()}`;
+      const msgRef = doc(db, "messages", String(msgId));
+      await setDoc(msgRef, {
+        ...messageData,
+        id: msgId,
+        createdAt: new Date().toISOString()
+      }, { merge: true });
+      return true;
+    } catch (err: any) {
+      console.error("Firestore syncMessage error:", err);
+      return false;
+    }
+  },
+
+  /**
+   * Sync complete store snapshot to Firestore cloud backup and individual collections
    */
   async pushStoreSnapshot(storeData: {
     products?: any[];
@@ -190,10 +340,11 @@ export const FirebaseSync = {
     purchases?: any[];
     settings?: any;
   }): Promise<{ success: boolean; timestamp: string; error?: string }> {
-    try {
+    const executeSync = async () => {
       const now = new Date().toISOString();
       const snapshotRef = doc(db, "snapshots", "latest");
       
+      // 1. Write the latest snapshot document
       await setDoc(snapshotRef, {
         updatedAt: now,
         businessName: storeData.settings?.businessName || "Royalvazier Textile",
@@ -210,19 +361,53 @@ export const FirebaseSync = {
         }
       }, { merge: true });
 
-      // Save timestamped backup document in history
-      const historyRef = doc(collection(db, "backup_history"));
-      await setDoc(historyRef, {
-        timestamp: now,
-        productsCount: storeData.products?.length || 0,
-        salesCount: storeData.sales?.length || 0,
-        debtsCount: storeData.debts?.length || 0
-      });
+      // 2. Also populate individual collections so items are directly browsable in Firestore console
+      if (Array.isArray(storeData.products) && storeData.products.length > 0) {
+        for (let i = 0; i < storeData.products.length; i += 400) {
+          const chunk = storeData.products.slice(i, i + 400);
+          await this.syncProductsBatch(chunk);
+        }
+      }
+
+      if (Array.isArray(storeData.sales)) {
+        for (const sale of storeData.sales.slice(-20)) {
+          await this.syncSale(sale);
+        }
+      }
+
+      if (Array.isArray(storeData.debts)) {
+        for (const debt of storeData.debts) {
+          await this.syncDebt(debt);
+        }
+      }
+
+      if (storeData.settings) {
+        await this.syncSettings(storeData.settings);
+      }
 
       return { success: true, timestamp: now };
+    };
+
+    try {
+      // 25 second timeout for realistic mobile/cellular connections
+      const result = await Promise.race([
+        executeSync(),
+        new Promise<{ success: boolean; timestamp: string; error?: string }>((_, reject) =>
+          setTimeout(() => reject(new Error("Sync timed out (25s). Cloud database is unreachable or slow network.")), 25000)
+        )
+      ]);
+      return result;
     } catch (err: any) {
       console.error("Firebase sync error:", err);
-      return { success: false, timestamp: new Date().toISOString(), error: err.message };
+      const isNotFound = err?.code === 'not-found' || String(err?.message || '').includes('NOT_FOUND') || String(err || '').includes('NOT_FOUND');
+      const isPermission = err?.code === 'permission-denied' || String(err?.message || '').includes('permission');
+      let errorMsg = err?.message || "Sync failed.";
+      if (isNotFound) {
+        errorMsg = "Firestore Database not created yet. Please check Firebase Console > Firestore Database.";
+      } else if (isPermission) {
+        errorMsg = "Permission denied. Please publish your rules in Firebase Console > Firestore Database > Rules tab.";
+      }
+      return { success: false, timestamp: new Date().toISOString(), error: errorMsg };
     }
   },
 
@@ -234,42 +419,46 @@ export const FirebaseSync = {
       const snapshotRef = doc(db, "snapshots", "latest");
       const docSnap = await getDoc(snapshotRef);
 
-      if (!docSnap.exists()) {
-        return { success: false, error: "No cloud snapshot found in Firestore." };
+      if (docSnap.exists()) {
+        const snapData = docSnap.data();
+        if (snapData && snapData.payload) {
+          return {
+            success: true,
+            data: snapData.payload
+          };
+        }
       }
 
-      const snapData = docSnap.data();
-      return {
-        success: true,
-        data: snapData.payload || null
-      };
+      // Fallback: Pull from collections directly
+      const productsSnap = await getDocs(collection(db, "products"));
+      const products: any[] = [];
+      productsSnap.forEach(d => products.push(d.data()));
+
+      const salesSnap = await getDocs(collection(db, "sales"));
+      const sales: any[] = [];
+      salesSnap.forEach(d => sales.push(d.data()));
+
+      const debtsSnap = await getDocs(collection(db, "debts"));
+      const debts: any[] = [];
+      debtsSnap.forEach(d => debts.push(d.data()));
+
+      if (products.length > 0 || sales.length > 0 || debts.length > 0) {
+        return {
+          success: true,
+          data: {
+            products,
+            sales,
+            debts,
+            purchases: [],
+            settings: {}
+          }
+        };
+      }
+
+      return { success: false, error: "No cloud snapshot or collection data found in Firestore." };
     } catch (err: any) {
       console.error("Firebase pull error:", err);
       return { success: false, error: err.message };
-    }
-  },
-
-  /**
-   * Sync single sale in real time
-   */
-  async syncSale(sale: any): Promise<void> {
-    try {
-      const saleRef = doc(db, "sales", sale.id);
-      await setDoc(saleRef, { ...sale, syncedAt: new Date().toISOString() }, { merge: true });
-    } catch (err) {
-      console.warn("Realtime sale sync warning:", err);
-    }
-  },
-
-  /**
-   * Sync single debt in real time
-   */
-  async syncDebt(debt: any): Promise<void> {
-    try {
-      const debtRef = doc(db, "debts", debt.id);
-      await setDoc(debtRef, { ...debt, syncedAt: new Date().toISOString() }, { merge: true });
-    } catch (err) {
-      console.warn("Realtime debt sync warning:", err);
     }
   }
 };

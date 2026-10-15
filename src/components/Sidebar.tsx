@@ -148,7 +148,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 >
                     <span>v2.4.1 (Stable)</span>
                     <a href="#settings" onClick={(e) => handleItemClick('settings', e)} style={{ color: 'inherit', textDecoration: 'none' }}>
-                        &copy; 2026 Vendora
+                    © 2026 Royalvazier
                     </a>
                 </div>
             </div>

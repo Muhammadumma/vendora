@@ -39,7 +39,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ user, onLoginSuccess }) =>
     const [q2, setQ2] = useState('What was your first car?');
     const [a2, setA2] = useState('');
 
-    const isSecuritySetupNeeded = !!user && !user.securityQuestions;
+    // Firebase-authenticated users don't need in-app security questions
+    const isFirebaseUser = user?.authProvider === 'firebase-email' || user?.authProvider === 'firebase-google';
+    const isSecuritySetupNeeded = !!user && !user.securityQuestions && !isFirebaseUser;
 
     if (user && !isSecuritySetupNeeded) {
         return null;
@@ -127,28 +129,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ user, onLoginSuccess }) =>
                 onLoginSuccess(session);
             } catch (err: any) {
                 console.error('Sign-In Error:', err);
-                // If demo credentials or offline fallback requested
-                if (emailOrUsername.trim().toLowerCase() === 'demo admin' || emailOrUsername.trim().toLowerCase() === 'admin') {
-                    Store.login(emailOrUsername.trim(), password);
-                    const loggedIn = Store.getUser();
-                    if (loggedIn) {
-                        onLoginSuccess(loggedIn);
-                        return;
-                    }
-                }
                 setErrorMsg(FirebaseAuthService.getErrorMessage(err));
             } finally {
                 setLoading(false);
             }
-        }
-    };
-
-    // 3. Quick Demo Login (Offline / instant access)
-    const handleDemoLogin = () => {
-        Store.login('Demo Admin', 'vendora123', null, { authProvider: 'demo', role: 'Super Admin' });
-        const loggedIn = Store.getUser();
-        if (loggedIn) {
-            onLoginSuccess(loggedIn);
         }
     };
 
@@ -274,38 +258,41 @@ export const AuthModal: React.FC<AuthModalProps> = ({ user, onLoginSuccess }) =>
 
     // View: Main Login / Register / Password Reset
     return (
-        <div className="auth-overlay">
-            <div className="auth-card fade-in" style={{ maxWidth: '440px', width: '92vw' }}>
-                <div className="auth-header" style={{ marginBottom: '24px' }}>
+        <div className="auth-overlay" style={{
+            background: 'rgba(15, 23, 42, 0.92)',
+            backdropFilter: 'blur(12px)'
+        }}>
+            <div className="auth-card fade-in" style={{ maxWidth: '420px', width: '92vw', borderRadius: '20px', boxShadow: '0 24px 60px rgba(0,0,0,0.35)' }}>
+                <div className="auth-header" style={{ marginBottom: '20px' }}>
                     <div
-                        className="auth-icon-container"
                         style={{
-                            width: '56px',
-                            height: '56px',
-                            borderRadius: '16px',
+                            width: '52px',
+                            height: '52px',
+                            borderRadius: '14px',
                             overflow: 'hidden',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             margin: '0 auto 12px auto',
                             background: '#FFFFFF',
-                            boxShadow: '0 4px 14px rgba(0, 0, 0, 0.08)'
+                            boxShadow: '0 4px 14px rgba(0,0,0,0.12)',
+                            border: '1px solid #E2E8F0'
                         }}
                     >
                         <img
                             src="/logo.png"
-                            alt="Vendora Logo"
+                            alt="Logo"
                             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                             onError={(e) => {
                                 (e.currentTarget as HTMLElement).style.display = 'none';
                             }}
                         />
                     </div>
-                    <h2 className="auth-title" style={{ fontSize: '24px' }}>Royalvazier Vendora</h2>
-                    <p className="auth-subtitle" style={{ fontSize: '13px' }}>
-                        {mode === 'login' && 'Sign in to access your enterprise textile store'}
-                        {mode === 'register' && 'Create your official administrator account'}
-                        {mode === 'forgot-password' && 'Enter your email to receive a password reset link'}
+                    <h2 className="auth-title" style={{ fontSize: '22px', fontWeight: 800, color: '#0F172A' }}>Royalvazier</h2>
+                    <p className="auth-subtitle" style={{ fontSize: '13px', color: '#64748B', marginTop: '4px' }}>
+                        {mode === 'login' && 'Sign in to manage your business'}
+                        {mode === 'register' && 'Create your administrator account'}
+                        {mode === 'forgot-password' && 'Enter your email to reset your password'}
                     </p>
                 </div>
 
@@ -533,34 +520,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ user, onLoginSuccess }) =>
                         </button>
                     )}
                 </div>
-
-                {/* Quick Offline Demo Access */}
-                <div style={{ margin: '18px 0 12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div style={{ flex: 1, height: '1px', background: 'var(--border-subtle)' }} />
-                    <span style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        Quick Offline Access
-                    </span>
-                    <div style={{ flex: 1, height: '1px', background: 'var(--border-subtle)' }} />
-                </div>
-
-                <button
-                    type="button"
-                    onClick={handleDemoLogin}
-                    className="btn btn-outline"
-                    style={{
-                        width: '100%',
-                        borderColor: 'var(--border-color)',
-                        fontSize: '13px',
-                        height: '40px',
-                        gap: '8px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                    }}
-                >
-                    <Sparkles size={15} style={{ color: 'var(--primary-color)' }} />
-                    Instant Demo Login (Offline)
-                </button>
             </div>
         </div>
     );
