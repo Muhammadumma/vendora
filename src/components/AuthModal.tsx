@@ -65,6 +65,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ user, onLoginSuccess }) =>
         try {
             const fbUser = await FirebaseAuthService.loginWithGoogle();
             const session = Store.loginWithFirebaseUser(fbUser, 'firebase-google');
+            await Store.restoreFromCloud();
             onLoginSuccess(session);
         } catch (err: any) {
             console.error('Google Sign-In Error:', err);
@@ -114,6 +115,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ user, onLoginSuccess }) =>
                     profilePic
                 );
                 const session = Store.loginWithFirebaseUser(fbUser, 'firebase-email');
+                await Store.restoreFromCloud();
                 onLoginSuccess(session);
             } catch (err: any) {
                 console.error('Registration Error:', err);
@@ -126,6 +128,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ user, onLoginSuccess }) =>
             try {
                 const fbUser = await FirebaseAuthService.loginWithEmail(emailOrUsername.trim(), password);
                 const session = Store.loginWithFirebaseUser(fbUser, 'firebase-email');
+                await Store.restoreFromCloud();
                 onLoginSuccess(session);
             } catch (err: any) {
                 console.error('Sign-In Error:', err);

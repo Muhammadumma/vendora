@@ -106,7 +106,7 @@ const defaultRoyalvazierSettings: Settings = {
     businessPhone: '+2348137098824 / +2349060042040',
     businessEmail: 'info@royalvazier.com.ng',
     receiptFooter: 'Wholesale & Retail Fabrics Across Nigeria • Goods bought in good condition are not returnable',
-    theme: localStorage.getItem('bc_theme') || 'light',
+    theme: 'light',
     businessLogo: '/royalvazier-logo.png',
     socials: {
         instagram: '@royalvazier_textile',
@@ -115,38 +115,46 @@ const defaultRoyalvazierSettings: Settings = {
     }
 };
 
+function loadInitialSession(): UserSession | null {
+    if (typeof window === 'undefined') return null;
+    try {
+        const raw = sessionStorage.getItem('vendora_active_session');
+        if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed && parsed.uid) return parsed;
+        }
+    } catch (e) {
+        // ignore
+    }
+    return null;
+}
+
 type Listener = () => void;
 
 class StoreClass {
     private listeners: Set<Listener> = new Set();
 
     public state = {
-        activeSession: (JSON.parse(localStorage.getItem('bc_user') || 'null')) as UserSession | null,
-        products: (JSON.parse(localStorage.getItem('bc_products') || '[]')) as Product[],
-        sales: (JSON.parse(localStorage.getItem('bc_sales') || '[]')) as Sale[],
-        purchases: (JSON.parse(localStorage.getItem('bc_purchases') || '[]')) as Purchase[],
-        debts: (JSON.parse(localStorage.getItem('bc_debts') || '[]')) as Debt[],
-        settings: (() => {
-            const saved = JSON.parse(localStorage.getItem('bc_settings') || 'null');
-            if (!saved || saved.businessName === 'Vendora Marketing' || saved.businessName === 'VENDORA RETAIL') {
-                localStorage.setItem('bc_settings', JSON.stringify(defaultRoyalvazierSettings));
-                return defaultRoyalvazierSettings;
-            }
-            return { ...defaultRoyalvazierSettings, ...saved, businessLogo: saved.businessLogo || '/royalvazier-logo.png' };
-        })() as Settings,
+        activeSession: loadInitialSession(),
+        products: [] as Product[],
+        sales: [] as Sale[],
+        purchases: [] as Purchase[],
+        debts: [] as Debt[],
+        settings: { ...defaultRoyalvazierSettings } as Settings,
         isSyncing: false,
         lastSyncTimestamp: null as string | null,
         lastSyncError: null as string | null
     };
 
     private autoSyncTimer: any = null;
+    private _auditLog: any[] = [];
 
     queueAutoSync() {
-        // Debounce sync and avoid looping if a sync is already running
+        if (!this.state.activeSession?.isLoggedIn || !this.state.activeSession?.uid) return;
         if (this.state.isSyncing) return;
         if (this.autoSyncTimer) clearTimeout(this.autoSyncTimer);
         this.autoSyncTimer = setTimeout(() => {
-            if (!this.state.isSyncing) {
+            if (!this.state.isSyncing && this.state.activeSession?.isLoggedIn && this.state.activeSession?.uid) {
                 this.syncWithFirestore().catch(err => console.warn('Auto cloud sync notice:', err));
             }
         }, 3000);
@@ -216,7 +224,7 @@ class StoreClass {
             ]
         };
         this.state.activeSession = user;
-        this._save('bc_user', user);
+        try { sessionStorage.setItem('vendora_active_session', JSON.stringify(user)); } catch (e) {}
         this.notify();
         return true;
     }
@@ -225,7 +233,11 @@ class StoreClass {
         fbUser: { uid: string; email?: string | null; displayName?: string | null; photoURL?: string | null },
         provider: 'firebase-email' | 'firebase-google' = 'firebase-email'
     ): UserSession {
-        const name = fbUser.displayName || (fbUser.email ? fbUser.email.split('@')[0] : 'Royal Admin');
+        // If switching user, reset state
+        if (this.state.activeSession && this.state.activeSession.uid !== fbUser.uid) {
+            this.clearAllData();
+        }
+        const name = fbUser.displayName || (fbUser.email ? fbUser.email.split('@')[0] : 'Admin');
         const user: UserSession = {
             uid: fbUser.uid,
             name: name,
@@ -240,7 +252,7 @@ class StoreClass {
             ]
         };
         this.state.activeSession = user;
-        this._save('bc_user', user);
+        try { sessionStorage.setItem('vendora_active_session', JSON.stringify(user)); } catch (e) {}
         this.notify();
         return user;
     }
@@ -248,7 +260,7 @@ class StoreClass {
     setSecurityQuestions(questions: { question: string; answer: string }[]) {
         if (this.state.activeSession) {
             this.state.activeSession.securityQuestions = questions;
-            this._save('bc_user', this.state.activeSession);
+            try { sessionStorage.setItem('vendora_active_session', JSON.stringify(this.state.activeSession)); } catch (e) {}
             this.notify();
             return true;
         }
@@ -258,7 +270,7 @@ class StoreClass {
     updatePassword(newPassword: string) {
         if (this.state.activeSession) {
             this.state.activeSession.password = newPassword;
-            this._save('bc_user', this.state.activeSession);
+            try { sessionStorage.setItem('vendora_active_session', JSON.stringify(this.state.activeSession)); } catch (e) {}
             this.notify();
             return true;
         }
@@ -272,8 +284,8 @@ class StoreClass {
 
     logout() {
         this.state.activeSession = null;
-        localStorage.removeItem('bc_user');
-        localStorage.removeItem('bc_migrated');
+        try { sessionStorage.removeItem('vendora_active_session'); } catch (e) {}
+        this.clearAllData();
         FirebaseAuthService.logout().catch(e => console.warn(e));
         this.notify();
     }
@@ -555,29 +567,23 @@ class StoreClass {
     // Settings
     updateSettings(newSettings: Partial<Settings>) {
         this.state.settings = { ...this.state.settings, ...newSettings };
-        if (newSettings.theme) {
-            localStorage.setItem('bc_theme', newSettings.theme);
-        }
-        this._save('bc_settings', this.state.settings);
         this.notify();
         FirebaseSync.syncSettings(this.state.settings).catch(e => console.warn("Firestore settings sync:", e));
         this.queueAutoSync();
     }
 
-    // Audit Log
+    // Audit Log (in-memory only)
     logProductEdit(record: any) {
-        const log = JSON.parse(localStorage.getItem('bc_audit_log') || '[]');
-        log.push({
+        this._auditLog.push({
             id: 'LOG-' + Date.now(),
             timestamp: new Date().toISOString(),
             user: this.state.activeSession ? this.state.activeSession.name : 'Unknown',
             ...record
         });
-        localStorage.setItem('bc_audit_log', JSON.stringify(log));
     }
 
     getAuditLog() {
-        return JSON.parse(localStorage.getItem('bc_audit_log') || '[]');
+        return [...this._auditLog];
     }
 
     // Messages & Reminders
@@ -617,25 +623,12 @@ class StoreClass {
     restoreBackup(jsonString: string): boolean {
         try {
             const data = JSON.parse(jsonString);
-            if (data.products && Array.isArray(data.products)) {
-                this.state.products = data.products;
-                this._save('bc_products', data.products);
-            }
-            if (data.sales && Array.isArray(data.sales)) {
-                this.state.sales = data.sales;
-                this._save('bc_sales', data.sales);
-            }
-            if (data.purchases && Array.isArray(data.purchases)) {
-                this.state.purchases = data.purchases;
-                this._save('bc_purchases', data.purchases);
-            }
-            if (data.debts && Array.isArray(data.debts)) {
-                this.state.debts = data.debts;
-                this._save('bc_debts', data.debts);
-            }
+            this.state.products = Array.isArray(data.products) ? data.products : [];
+            this.state.sales = Array.isArray(data.sales) ? data.sales : [];
+            this.state.purchases = Array.isArray(data.purchases) ? data.purchases : [];
+            this.state.debts = Array.isArray(data.debts) ? data.debts : [];
             if (data.settings) {
-                this.state.settings = { ...this.state.settings, ...data.settings };
-                this._save('bc_settings', this.state.settings);
+                this.state.settings = { ...defaultRoyalvazierSettings, ...data.settings };
             }
             this.notify();
             return true;
@@ -650,14 +643,21 @@ class StoreClass {
         this.state.sales = [];
         this.state.purchases = [];
         this.state.debts = [];
-        this._save('bc_products', []);
-        this._save('bc_sales', []);
-        this._save('bc_purchases', []);
-        this._save('bc_debts', []);
+        this.state.settings = { ...defaultRoyalvazierSettings };
+        this.state.lastSyncTimestamp = null;
+        this.state.lastSyncError = null;
+        if (this.autoSyncTimer) {
+            clearTimeout(this.autoSyncTimer);
+            this.autoSyncTimer = null;
+        }
         this.notify();
     }
 
     async syncWithFirestore(): Promise<{ success: boolean; timestamp?: string; error?: string }> {
+        const uid = this.state.activeSession?.uid;
+        if (!uid) {
+            return { success: false, error: 'User is not signed in. Cannot sync without an account.' };
+        }
         if (this.state.isSyncing) {
             return { success: false, error: 'Sync already in progress' };
         }
@@ -680,7 +680,7 @@ class StoreClass {
                 debts: this.state.debts,
                 purchases: this.state.purchases,
                 settings: this.state.settings
-            });
+            }, uid);
             if (result.success) {
                 this.state.lastSyncTimestamp = result.timestamp || new Date().toISOString();
                 this.state.lastSyncError = null;
@@ -699,14 +699,19 @@ class StoreClass {
     }
 
     async restoreFromCloud(): Promise<{ success: boolean; error?: string }> {
+        const uid = this.state.activeSession?.uid;
+        if (!uid) {
+            return { success: false, error: 'No user account found to restore.' };
+        }
         this.state.isSyncing = true;
         this.notify();
         try {
-            const result = await FirebaseSync.pullStoreSnapshot();
+            const result = await FirebaseSync.pullStoreSnapshot(uid);
             if (!result.success || !result.data) {
+                // User has no cloud data yet — keep their account cleanly fresh
                 this.state.isSyncing = false;
                 this.notify();
-                return { success: false, error: result.error || 'No cloud data found.' };
+                return { success: true };
             }
             this.restoreBackup(JSON.stringify(result.data));
             this.state.isSyncing = false;
@@ -719,12 +724,9 @@ class StoreClass {
         }
     }
 
-    private _save(key: string, data: any) {
-        try {
-            localStorage.setItem(key, JSON.stringify(data));
-        } catch (e) {
-            console.warn('Storage save failed:', e);
-        }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    private _save(_key: string, _data: any) {
+        // localStorage disabled — Firestore is the only persistence layer
     }
 }
 

@@ -36,7 +36,7 @@ export const AddProductView: React.FC<AddProductViewProps> = ({ onNavigate }) =>
 
     // Single item state
     const [title, setTitle] = useState('');
-    const [category, setCategory] = useState('Grains');
+    const [category, setCategory] = useState('');
     const [sku, setSku] = useState(() => `SKU-${Math.floor(1000 + Math.random() * 9000)}`);
     const [batchCount, setBatchCount] = useState<number | string>(10);
     const [unitCost, setUnitCost] = useState<number | string>('');
@@ -51,8 +51,6 @@ export const AddProductView: React.FC<AddProductViewProps> = ({ onNavigate }) =>
     const [uploadedFileName, setUploadedFileName] = useState('');
     const [showAllRejected, setShowAllRejected] = useState(false);
     const [isCommitting, setIsCommitting] = useState(false);
-
-    const categoriesList = ['Grains', 'Cooking Oil', 'Dairy & Milk', 'Beverages', 'Flour & Bakery', 'Packaged Foods', 'Personal Care', 'General'];
 
     // Real-time calculations for single entry
     const costNum = Number(unitCost) || 0;
@@ -283,15 +281,22 @@ High Threshold Warning,Pantry,SKU-HIGHTHRESH-01,10,2000,2500,Supplier,999`;
                     {/* Row 2: Category & SKU */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
                         <div>
-                            <label className="label" style={{ fontSize: '11.5px', marginBottom: '3px' }}>Category</label>
-                            <select
+                            <label className="label" style={{ fontSize: '11.5px', marginBottom: '3px' }}>Category *</label>
+                            <input
+                                type="text"
+                                list="existing-categories-list"
                                 className="search-input"
                                 style={{ width: '100%', height: '38px', fontSize: '12.5px', padding: '6px 8px' }}
                                 value={category}
                                 onChange={e => setCategory(e.target.value)}
-                            >
-                                {categoriesList.map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
+                                placeholder="Type category (e.g. Adire, Lace, Brocade...)"
+                                required
+                            />
+                            <datalist id="existing-categories-list">
+                                {Array.from(new Set(Store.getProducts().map(p => p.category).filter(Boolean))).map(cat => (
+                                    <option key={cat} value={cat} />
+                                ))}
+                            </datalist>
                         </div>
                         <div>
                             <label className="label" style={{ fontSize: '11.5px', marginBottom: '3px' }}>Item Code / SKU</label>

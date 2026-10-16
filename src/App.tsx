@@ -24,23 +24,8 @@ export const App: React.FC = () => {
     const [isSyncing, setIsSyncing] = useState<boolean>(false);
 
 
-    // One-time purge: clear old mock/demo data from localStorage
-    useEffect(() => {
-        if (!localStorage.getItem('rv_purged_v3')) {
-            const saved = localStorage.getItem('bc_products');
-            if (saved) {
-                try {
-                    const products = JSON.parse(saved);
-                    const MOCK_NAMES = ['Mama Gold', 'Dangote Sugar', 'Golden Penny', 'Swiss Voile', 'Atiku', 'Getzner', 'Indomie', 'Semovita'];
-                    const hasMock = Array.isArray(products) && products.some((p: any) =>
-                        MOCK_NAMES.some(n => (p.name || '').includes(n))
-                    );
-                    if (hasMock) Store.clearAllData();
-                } catch {}
-            }
-            localStorage.setItem('rv_purged_v3', 'true');
-        }
-    }, []);
+
+
 
     useEffect(() => {
         const handleHashChange = () => {
@@ -71,6 +56,14 @@ export const App: React.FC = () => {
         }
     }, []);
 
+    // Initial mount restore if user is already in session
+    useEffect(() => {
+        const u = Store.getUser();
+        if (u?.uid) {
+            Store.restoreFromCloud().catch(e => console.warn('Mount restore:', e));
+        }
+    }, []);
+
     // Store & Firebase Auth update listener
     useEffect(() => {
         const unsubscribe = Store.subscribe(() => {
@@ -79,13 +72,22 @@ export const App: React.FC = () => {
         });
 
         // Sync with Firebase Auth state
-        const unsubAuth = FirebaseAuthService.onAuthStateChange((fbUser) => {
+        const unsubAuth = FirebaseAuthService.onAuthStateChange(async (fbUser) => {
             if (fbUser) {
                 const current = Store.getUser();
                 if (!current || current.uid !== fbUser.uid) {
                     const provider = fbUser.providerData?.[0]?.providerId === 'google.com' ? 'firebase-google' : 'firebase-email';
+                    Store.clearAllData();
                     const session = Store.loginWithFirebaseUser(fbUser, provider);
                     setUser(session);
+                    await Store.restoreFromCloud();
+                } else if (Store.getProducts().length === 0) {
+                    await Store.restoreFromCloud();
+                }
+            } else {
+                if (Store.getUser()) {
+                    Store.logout();
+                    setUser(null);
                 }
             }
         });
@@ -98,6 +100,8 @@ export const App: React.FC = () => {
 
     const handleSync = async () => {
         setIsSyncing(true);
+        // Pull latest from cloud and push memory updates
+        await Store.restoreFromCloud();
         await Store.syncWithFirestore();
         setIsSyncing(false);
     };

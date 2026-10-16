@@ -18,21 +18,21 @@ import {
 import { getStorage, FirebaseStorage } from "firebase/storage";
 import { getAnalytics, isSupported, Analytics } from "firebase/analytics";
 
-// Royalvazier Web App Firebase Configuration
+// Web App Firebase Configuration
 export const firebaseConfig = {
-  apiKey: "AIzaSyACNwBxxq4UDK4UF5DTDZL8j6U01jmeveY",
-  authDomain: "royalvazier.firebaseapp.com",
-  projectId: "royalvazier",
-  storageBucket: "royalvazier.firebasestorage.app",
-  messagingSenderId: "983030168656",
-  appId: "1:983030168656:web:ce1802f628261ecb692555",
-  measurementId: "G-XYZYR0BNQF"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyATTe1EAfn4aRss5sNVDsw59HVdb_tN4sQ",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "kowa-gru-reg.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "kowa-gru-reg",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "kowa-gru-reg.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "1023317910895",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:1023317910895:web:55a39f501a00831bf6b49a",
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-L7XYLWSXE0"
 };
 
 // Initialize Firebase Core
 export const app: FirebaseApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-// Connect to the 'default' database created in Firebase Console
-export const db: Firestore = getFirestore(app, "default");
+// Connect to the default Firestore database
+export const db: Firestore = getFirestore(app);
 export const auth: Auth = getAuth(app);
 export const storage: FirebaseStorage = getStorage(app);
 
@@ -180,16 +180,28 @@ export const FirebaseAuthService = {
 };
 
 /**
- * Cloud Firestore Sync Utilities for Royalvazier Vendora
+ * Helper to get the target user UID for per-account data isolation
+ */
+function getTargetUid(explicitUid?: string): string | null {
+  return explicitUid || auth.currentUser?.uid || null;
+}
+
+/**
+ * Cloud Firestore Sync Utilities for Vendora (Per-User Account Isolation)
  */
 export const FirebaseSync = {
   /**
-   * Real-time sync for a single product to the 'products' collection
+   * Real-time sync for a single product to the user's isolated 'products' collection
    */
-  async syncProduct(product: any): Promise<boolean> {
+  async syncProduct(product: any, userId?: string): Promise<boolean> {
     if (!product || !product.id) return false;
+    const uid = getTargetUid(userId);
+    if (!uid) {
+      console.warn("Firestore syncProduct skipped: no authenticated user");
+      return false;
+    }
     try {
-      const prodRef = doc(db, "products", String(product.id));
+      const prodRef = doc(db, "users", uid, "products", String(product.id));
       await setDoc(prodRef, {
         ...product,
         updatedAt: new Date().toISOString()
@@ -202,12 +214,14 @@ export const FirebaseSync = {
   },
 
   /**
-   * Delete a single product from the 'products' collection
+   * Delete a single product from the user's isolated 'products' collection
    */
-  async deleteProduct(productId: string): Promise<boolean> {
+  async deleteProduct(productId: string, userId?: string): Promise<boolean> {
     if (!productId) return false;
+    const uid = getTargetUid(userId);
+    if (!uid) return false;
     try {
-      const prodRef = doc(db, "products", String(productId));
+      const prodRef = doc(db, "users", uid, "products", String(productId));
       await deleteDoc(prodRef);
       return true;
     } catch (err: any) {
@@ -217,15 +231,17 @@ export const FirebaseSync = {
   },
 
   /**
-   * Batch sync multiple products
+   * Batch sync multiple products into user's isolated 'products' collection
    */
-  async syncProductsBatch(products: any[]): Promise<boolean> {
+  async syncProductsBatch(products: any[], userId?: string): Promise<boolean> {
     if (!Array.isArray(products) || products.length === 0) return true;
+    const uid = getTargetUid(userId);
+    if (!uid) return false;
     try {
       const batch = writeBatch(db);
       for (const item of products) {
         if (!item || !item.id) continue;
-        const ref = doc(db, "products", String(item.id));
+        const ref = doc(db, "users", uid, "products", String(item.id));
         batch.set(ref, {
           ...item,
           updatedAt: new Date().toISOString()
@@ -240,12 +256,14 @@ export const FirebaseSync = {
   },
 
   /**
-   * Sync single sale in real time to the 'sales' collection
+   * Sync single sale in real time to the user's isolated 'sales' collection
    */
-  async syncSale(sale: any): Promise<boolean> {
+  async syncSale(sale: any, userId?: string): Promise<boolean> {
     if (!sale || !sale.id) return false;
+    const uid = getTargetUid(userId);
+    if (!uid) return false;
     try {
-      const saleRef = doc(db, "sales", String(sale.id));
+      const saleRef = doc(db, "users", uid, "sales", String(sale.id));
       await setDoc(saleRef, {
         ...sale,
         syncedAt: new Date().toISOString()
@@ -258,12 +276,14 @@ export const FirebaseSync = {
   },
 
   /**
-   * Sync single debt in real time to the 'debts' collection
+   * Sync single debt in real time to the user's isolated 'debts' collection
    */
-  async syncDebt(debt: any): Promise<boolean> {
+  async syncDebt(debt: any, userId?: string): Promise<boolean> {
     if (!debt || !debt.id) return false;
+    const uid = getTargetUid(userId);
+    if (!uid) return false;
     try {
-      const debtRef = doc(db, "debts", String(debt.id));
+      const debtRef = doc(db, "users", uid, "debts", String(debt.id));
       await setDoc(debtRef, {
         ...debt,
         syncedAt: new Date().toISOString()
@@ -276,12 +296,14 @@ export const FirebaseSync = {
   },
 
   /**
-   * Sync single purchase in real time to the 'purchases' collection
+   * Sync single purchase in real time to the user's isolated 'purchases' collection
    */
-  async syncPurchase(purchase: any): Promise<boolean> {
+  async syncPurchase(purchase: any, userId?: string): Promise<boolean> {
     if (!purchase || !purchase.id) return false;
+    const uid = getTargetUid(userId);
+    if (!uid) return false;
     try {
-      const purRef = doc(db, "purchases", String(purchase.id));
+      const purRef = doc(db, "users", uid, "purchases", String(purchase.id));
       await setDoc(purRef, {
         ...purchase,
         syncedAt: new Date().toISOString()
@@ -294,11 +316,13 @@ export const FirebaseSync = {
   },
 
   /**
-   * Sync settings to 'settings' collection
+   * Sync settings to user's isolated 'settings' document
    */
-  async syncSettings(settings: any): Promise<boolean> {
+  async syncSettings(settings: any, userId?: string): Promise<boolean> {
+    const uid = getTargetUid(userId);
+    if (!uid) return false;
     try {
-      const setRef = doc(db, "settings", "general");
+      const setRef = doc(db, "users", uid, "settings", "general");
       await setDoc(setRef, {
         ...settings,
         updatedAt: new Date().toISOString()
@@ -311,13 +335,15 @@ export const FirebaseSync = {
   },
 
   /**
-   * Sync reminder or activity message to 'messages' collection in Firestore
+   * Sync reminder or activity message to user's isolated 'messages' collection
    */
-  async syncMessage(messageData: any): Promise<boolean> {
+  async syncMessage(messageData: any, userId?: string): Promise<boolean> {
     if (!messageData) return false;
+    const uid = getTargetUid(userId);
+    if (!uid) return false;
     try {
       const msgId = messageData.id || `MSG-${Date.now()}`;
-      const msgRef = doc(db, "messages", String(msgId));
+      const msgRef = doc(db, "users", uid, "messages", String(msgId));
       await setDoc(msgRef, {
         ...messageData,
         id: msgId,
@@ -331,7 +357,7 @@ export const FirebaseSync = {
   },
 
   /**
-   * Sync complete store snapshot to Firestore cloud backup and individual collections
+   * Sync complete store snapshot to user's isolated Firestore cloud backup
    */
   async pushStoreSnapshot(storeData: {
     products?: any[];
@@ -339,15 +365,21 @@ export const FirebaseSync = {
     debts?: any[];
     purchases?: any[];
     settings?: any;
-  }): Promise<{ success: boolean; timestamp: string; error?: string }> {
+  }, userId?: string): Promise<{ success: boolean; timestamp: string; error?: string }> {
+    const uid = getTargetUid(userId);
+    if (!uid) {
+      return { success: false, timestamp: new Date().toISOString(), error: "User is not signed in." };
+    }
+
     const executeSync = async () => {
       const now = new Date().toISOString();
-      const snapshotRef = doc(db, "snapshots", "latest");
+      const snapshotRef = doc(db, "users", uid, "snapshots", "latest");
       
-      // 1. Write the latest snapshot document
+      // 1. Write the latest snapshot document inside the user's private space
       await setDoc(snapshotRef, {
         updatedAt: now,
-        businessName: storeData.settings?.businessName || "Royalvazier Textile",
+        userId: uid,
+        businessName: storeData.settings?.businessName || "Vendora Store",
         productsCount: storeData.products?.length || 0,
         salesCount: storeData.sales?.length || 0,
         debtsCount: storeData.debts?.length || 0,
@@ -361,35 +393,40 @@ export const FirebaseSync = {
         }
       }, { merge: true });
 
-      // 2. Also populate individual collections so items are directly browsable in Firestore console
+      // 2. Also populate user's individual collections
       if (Array.isArray(storeData.products) && storeData.products.length > 0) {
         for (let i = 0; i < storeData.products.length; i += 400) {
           const chunk = storeData.products.slice(i, i + 400);
-          await this.syncProductsBatch(chunk);
+          await this.syncProductsBatch(chunk, uid);
         }
       }
 
       if (Array.isArray(storeData.sales)) {
-        for (const sale of storeData.sales.slice(-20)) {
-          await this.syncSale(sale);
+        for (const sale of storeData.sales.slice(-50)) {
+          await this.syncSale(sale, uid);
         }
       }
 
       if (Array.isArray(storeData.debts)) {
         for (const debt of storeData.debts) {
-          await this.syncDebt(debt);
+          await this.syncDebt(debt, uid);
+        }
+      }
+
+      if (Array.isArray(storeData.purchases)) {
+        for (const pur of storeData.purchases.slice(-50)) {
+          await this.syncPurchase(pur, uid);
         }
       }
 
       if (storeData.settings) {
-        await this.syncSettings(storeData.settings);
+        await this.syncSettings(storeData.settings, uid);
       }
 
       return { success: true, timestamp: now };
     };
 
     try {
-      // 25 second timeout for realistic mobile/cellular connections
       const result = await Promise.race([
         executeSync(),
         new Promise<{ success: boolean; timestamp: string; error?: string }>((_, reject) =>
@@ -399,7 +436,7 @@ export const FirebaseSync = {
       return result;
     } catch (err: any) {
       console.error("Firebase sync error:", err);
-      const isNotFound = err?.code === 'not-found' || String(err?.message || '').includes('NOT_FOUND') || String(err || '').includes('NOT_FOUND');
+      const isNotFound = err?.code === 'not-found' || String(err?.message || '').includes('NOT_FOUND');
       const isPermission = err?.code === 'permission-denied' || String(err?.message || '').includes('permission');
       let errorMsg = err?.message || "Sync failed.";
       if (isNotFound) {
@@ -412,52 +449,91 @@ export const FirebaseSync = {
   },
 
   /**
-   * Pull latest cloud backup from Firestore
+   * Pull latest cloud backup from user's isolated Firestore collection
    */
-  async pullStoreSnapshot(): Promise<{ success: boolean; data?: any; error?: string }> {
-    try {
-      const snapshotRef = doc(db, "snapshots", "latest");
-      const docSnap = await getDoc(snapshotRef);
+  async pullStoreSnapshot(userId?: string): Promise<{ success: boolean; data?: any; error?: string }> {
+    const uid = getTargetUid(userId);
+    if (!uid) {
+      console.warn("[FirebaseSync] pullStoreSnapshot: No UID provided or authenticated.");
+      return { success: false, error: "No authenticated user session found." };
+    }
 
-      if (docSnap.exists()) {
-        const snapData = docSnap.data();
-        if (snapData && snapData.payload) {
-          return {
-            success: true,
-            data: snapData.payload
-          };
+    try {
+      console.log(`[FirebaseSync] Pulling cloud data for user: ${uid}...`);
+      const snapshotRef = doc(db, "users", uid, "snapshots", "latest");
+      try {
+        const docSnap = await getDoc(snapshotRef);
+        if (docSnap.exists()) {
+          const snapData = docSnap.data();
+          if (snapData && snapData.payload) {
+            console.log(`[FirebaseSync] Loaded snapshot for ${uid}:`, snapData.payload);
+            return {
+              success: true,
+              data: snapData.payload
+            };
+          }
         }
+      } catch (e) {
+        console.warn("[FirebaseSync] Snapshot lookup notice:", e);
       }
 
-      // Fallback: Pull from collections directly
-      const productsSnap = await getDocs(collection(db, "products"));
+      // Fallback: Pull directly from user's subcollections
+      const productsSnap = await getDocs(collection(db, "users", uid, "products"));
       const products: any[] = [];
-      productsSnap.forEach(d => products.push(d.data()));
+      productsSnap.forEach(d => {
+        const item = d.data();
+        products.push({ id: d.id, ...item });
+      });
 
-      const salesSnap = await getDocs(collection(db, "sales"));
+      const salesSnap = await getDocs(collection(db, "users", uid, "sales"));
       const sales: any[] = [];
-      salesSnap.forEach(d => sales.push(d.data()));
+      salesSnap.forEach(d => {
+        const item = d.data();
+        sales.push({ id: d.id, ...item });
+      });
 
-      const debtsSnap = await getDocs(collection(db, "debts"));
+      const debtsSnap = await getDocs(collection(db, "users", uid, "debts"));
       const debts: any[] = [];
-      debtsSnap.forEach(d => debts.push(d.data()));
+      debtsSnap.forEach(d => {
+        const item = d.data();
+        debts.push({ id: d.id, ...item });
+      });
 
-      if (products.length > 0 || sales.length > 0 || debts.length > 0) {
+      const purchasesSnap = await getDocs(collection(db, "users", uid, "purchases"));
+      const purchases: any[] = [];
+      purchasesSnap.forEach(d => {
+        const item = d.data();
+        purchases.push({ id: d.id, ...item });
+      });
+
+      let settingsData = {};
+      try {
+        const setSnap = await getDoc(doc(db, "users", uid, "settings", "general"));
+        if (setSnap.exists()) {
+          settingsData = setSnap.data() || {};
+        }
+      } catch (e) {
+        // settings optional
+      }
+
+      console.log(`[FirebaseSync] Found in subcollections for ${uid}: products=${products.length}, sales=${sales.length}, debts=${debts.length}`);
+
+      if (products.length > 0 || sales.length > 0 || debts.length > 0 || purchases.length > 0) {
         return {
           success: true,
           data: {
             products,
             sales,
             debts,
-            purchases: [],
-            settings: {}
+            purchases,
+            settings: settingsData
           }
         };
       }
 
-      return { success: false, error: "No cloud snapshot or collection data found in Firestore." };
+      return { success: false, error: "No cloud data found for this user account." };
     } catch (err: any) {
-      console.error("Firebase pull error:", err);
+      console.error("[FirebaseSync] pull error:", err);
       return { success: false, error: err.message };
     }
   }

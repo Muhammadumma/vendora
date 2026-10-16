@@ -148,9 +148,7 @@ export const Utils = {
     generateReceiptPrintContent(sale: any, settings?: any): string {
         let storeSettings = settings;
         if (!storeSettings && typeof window !== 'undefined') {
-            try {
-                storeSettings = JSON.parse(localStorage.getItem('bc_settings') || '{}');
-            } catch {}
+            storeSettings = {};
         }
         storeSettings = storeSettings || {};
 
@@ -355,9 +353,7 @@ export const Utils = {
         const bodyContent = Utils.generateReceiptPrintContent(sale, settings);
         let storeSettings = settings;
         if (!storeSettings && typeof window !== 'undefined') {
-            try {
-                storeSettings = JSON.parse(localStorage.getItem('bc_settings') || '{}');
-            } catch {}
+            storeSettings = {};
         }
         storeSettings = storeSettings || {};
         const storeName = storeSettings.businessName || 'Royalvazier Textile';
