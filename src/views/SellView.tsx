@@ -90,10 +90,18 @@ export const SellView: React.FC = () => {
     });
 
     const addToCart = (prod: Product) => {
-        if (Number(prod.qty) <= 0) return;
+        const availableStock = Number(prod.qty) || 0;
+        if (availableStock <= 0) {
+            setErrorMsg(`"${prod.name}" is currently out of stock.`);
+            return;
+        }
         setCart(prev => {
             const existing = prev.find(i => i.productId === prod.id || i.name === prod.name);
             if (existing) {
+                if (existing.qty >= availableStock) {
+                    setErrorMsg(`Cannot add more: only ${availableStock} units available in stock.`);
+                    return prev;
+                }
                 return prev.map(i => (i.productId === prod.id || i.name === prod.name)
                     ? { ...i, qty: i.qty + 1 }
                     : i
@@ -111,11 +119,17 @@ export const SellView: React.FC = () => {
     };
 
     const updateQty = (name: string, delta: number) => {
+        const prod = products.find(p => p.name === name);
+        const availableStock = prod ? Number(prod.qty) : 9999;
         setCart(prev => {
             return prev.map(item => {
                 if (item.name === name) {
                     const newQty = item.qty + delta;
                     if (newQty <= 0) return null as any;
+                    if (delta > 0 && newQty > availableStock) {
+                        setErrorMsg(`Cannot add more: only ${availableStock} units available in stock.`);
+                        return item;
+                    }
                     return { ...item, qty: newQty };
                 }
                 return item;
@@ -246,14 +260,37 @@ export const SellView: React.FC = () => {
     const handleDownloadReceipt = () => {
         if (completedSale) {
             Utils.downloadReceipt(completedSale, Store.getSettings());
-            setPrintStatus('Receipt saved');
+            setPrintStatus('Receipt saved (HTML)');
             setTimeout(() => setPrintStatus(''), 3000);
         }
     };
 
-    // Filter sales for history tab
-    const todayStr = new Date().toISOString().split('T')[0];
-    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const handleDownloadPDF = async () => {
+        if (completedSale) {
+            setPrintStatus('Generating PDF...');
+            try {
+                await Utils.downloadReceiptPDF(completedSale, Store.getSettings());
+                setPrintStatus('Receipt downloaded (PDF)');
+            } catch (e: any) {
+                console.warn('PDF download fallback:', e);
+                Utils.downloadReceipt(completedSale, Store.getSettings());
+                setPrintStatus('Receipt saved (HTML)');
+            }
+            setTimeout(() => setPrintStatus(''), 3000);
+        }
+    };
+
+    // Filter sales for history tab (local calendar day safe)
+    const nowLocal = new Date();
+    const isSameDay = (dStr: string) => {
+        try {
+            const d = new Date(dStr);
+            return d.getFullYear() === nowLocal.getFullYear() && d.getMonth() === nowLocal.getMonth() && d.getDate() === nowLocal.getDate();
+        } catch {
+            return false;
+        }
+    };
+    const weekAgoMs = Date.now() - 7 * 24 * 60 * 60 * 1000;
     const filteredSales = [...sales].reverse().filter(s => {
         const q = historySearch.trim().toLowerCase();
         const matchQ = !q ||
@@ -261,8 +298,8 @@ export const SellView: React.FC = () => {
             s.id.toLowerCase().includes(q) ||
             (s.paymentMethod || '').toLowerCase().includes(q);
         const matchDate =
-            historyFilter === 'today' ? s.date.startsWith(todayStr) :
-            historyFilter === 'week' ? s.date >= weekAgo :
+            historyFilter === 'today' ? isSameDay(s.date) :
+            historyFilter === 'week' ? new Date(s.date).getTime() >= weekAgoMs :
             true;
         return matchQ && matchDate;
     });
@@ -1292,10 +1329,20 @@ export const SellView: React.FC = () => {
                                 <button
                                     type="button"
                                     className="btn btn-outline"
+                                    onClick={handleDownloadPDF}
+                                    style={{ flex: 1, fontSize: '12px' }}
+                                    title="Download standard 80mm PDF receipt"
+                                >
+                                    <FileText size={13} /> PDF
+                                </button>
+                                <button
+                                    type="button"
+                                    className="btn btn-outline"
                                     onClick={handleDownloadReceipt}
                                     style={{ flex: 1, fontSize: '12px' }}
+                                    title="Save standalone HTML receipt"
                                 >
-                                    <Download size={13} /> Save
+                                    <Download size={13} /> HTML
                                 </button>
                             </div>
                         </div>

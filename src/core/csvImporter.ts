@@ -206,9 +206,9 @@ export function validateRow(
     if (!sku) errors.push('Missing SKU');
     if (!category) errors.push('Missing category');
 
-    // SKU uniqueness
+    // SKU uniqueness (case-insensitive)
     if (sku) {
-        if (existingSKUs.has(sku)) {
+        if (existingSKUs.has(sku.toLowerCase())) {
             errors.push(`Duplicate SKU: ${sku}`);
         }
     }
@@ -363,7 +363,7 @@ export function parseAndValidateCSV(
         };
     }
 
-    const seenSKUsInFile = new Set<string>(alreadyStoredSKUs);
+    const seenSKUsInFile = new Set<string>(Array.from(alreadyStoredSKUs).map(s => s.toLowerCase()));
     const validRows: RowValidationResult[] = [];
     const rejectedRows: RowValidationResult[] = [];
     let hasSuspiciousMargin = false;
@@ -404,7 +404,7 @@ export function parseAndValidateCSV(
         };
 
         if (validation.valid && validation.data) {
-            seenSKUsInFile.add(validation.data.sku);
+            seenSKUsInFile.add(validation.data.sku.toLowerCase());
             validRows.push(res);
             if (validation.warnings.length > 0) {
                 totalWarnings += validation.warnings.length;

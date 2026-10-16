@@ -562,22 +562,66 @@ export const SettingsView: React.FC = () => {
                     )}
 
                     {/* Firebase Cloud Sync Row */}
-                    <div style={{ background: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: '12px', padding: '14px', marginBottom: '14px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-                            <Wifi size={14} color="#0284C7" />
-                            <span style={{ fontSize: '12px', fontWeight: 800, color: '#0284C7', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Firebase Cloud Sync</span>
-                            <span style={{ fontSize: '10px', background: '#0284C7', color: '#FFF', borderRadius: '999px', padding: '1px 7px', fontWeight: 700 }}>LIVE</span>
+                    <div style={{ background: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: '16px', padding: '16px', marginBottom: '16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <Wifi size={16} color="#0284C7" />
+                                <span style={{ fontSize: '13px', fontWeight: 800, color: '#0284C7', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Firestore NoSQL Cloud Database</span>
+                            </div>
+                            <span style={{ fontSize: '10.5px', background: '#0284C7', color: '#FFF', borderRadius: '999px', padding: '2px 8px', fontWeight: 700 }}>LIVE SYNC</span>
                         </div>
-                        <div style={{ fontSize: '11px', color: '#475569', marginBottom: '12px' }}>
-                            Push all data to Firestore or restore from your latest cloud snapshot.
+                        <div style={{ fontSize: '12px', color: '#475569', marginBottom: '14px', lineHeight: 1.5 }}>
+                            Transfer 100% of your products, sales, credit debts, restock purchases, and store parameters directly to your isolated Firestore NoSQL collections.
                         </div>
+
+                        {/* Complete 100% DB Transfer Action */}
+                        <button
+                            type="button"
+                            disabled={cloudLoading !== null}
+                            onClick={async () => {
+                                setCloudLoading('push');
+                                setCloudMsg('Transferring 100% data to Firestore collections...');
+                                const result = await Store.transferToCloud();
+                                setCloudLoading(null);
+                                if (result.success && result.stats) {
+                                    setCloudMsg(`✓ Transferred 100% to Cloud DB! (${result.stats.products} products, ${result.stats.sales} sales, ${result.stats.debts} debts, ${result.stats.purchases} purchases)`);
+                                } else if (result.success) {
+                                    setCloudMsg(`✓ All data transferred to cloud DB successfully!`);
+                                } else {
+                                    setCloudMsg(`✗ Data transfer failed: ${result.error || 'Network error'}`);
+                                }
+                                setTimeout(() => setCloudMsg(''), 7000);
+                            }}
+                            style={{
+                                width: '100%',
+                                padding: '13px',
+                                borderRadius: '12px',
+                                border: 'none',
+                                background: 'linear-gradient(135deg, #0284C7 0%, #0369A1 100%)',
+                                color: '#FFFFFF',
+                                fontSize: '13.5px',
+                                fontWeight: 800,
+                                cursor: cloudLoading !== null ? 'not-allowed' : 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px',
+                                boxShadow: '0 4px 12px rgba(2, 132, 199, 0.25)',
+                                marginBottom: '10px',
+                                opacity: cloudLoading !== null && cloudLoading !== 'push' ? 0.6 : 1
+                            }}
+                        >
+                            <CloudUpload size={17} />
+                            <span>{cloudLoading === 'push' ? 'Transferring 100% to Cloud DB...' : 'Transfer 100% Data to Cloud DB'}</span>
+                        </button>
+
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                             <button
                                 type="button"
                                 disabled={cloudLoading !== null}
                                 onClick={async () => {
                                     setCloudLoading('push');
-                                    setCloudMsg('Syncing to Firebase cloud...');
+                                    setCloudMsg('Syncing latest snapshot to Firebase...');
                                     const result = await Store.syncWithFirestore();
                                     setCloudLoading(null);
                                     if (result.success) {
@@ -588,66 +632,56 @@ export const SettingsView: React.FC = () => {
                                     setTimeout(() => setCloudMsg(''), 5000);
                                 }}
                                 style={{
-                                    padding: '10px',
+                                    padding: '9px 12px',
                                     borderRadius: '10px',
-                                    border: 'none',
-                                    background: cloudLoading === 'push' ? '#7DD3FC' : '#0284C7',
-                                    color: '#FFFFFF',
-                                    fontSize: '12.5px',
-                                    fontWeight: 800,
+                                    border: '1px solid #BAE6FD',
+                                    background: '#FFFFFF',
+                                    color: '#0369A1',
+                                    fontSize: '12px',
+                                    fontWeight: 700,
                                     cursor: cloudLoading !== null ? 'not-allowed' : 'pointer',
                                     display: 'flex',
-                                    flexDirection: 'column',
                                     alignItems: 'center',
-                                    gap: '3px',
-                                    opacity: cloudLoading !== null && cloudLoading !== 'push' ? 0.5 : 1
+                                    justifyContent: 'center',
+                                    gap: '6px'
                                 }}
                             >
-                                <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                    {cloudLoading === 'push' ? <RefreshCw size={14} /> : <Upload size={14} />}
-                                    {cloudLoading === 'push' ? 'Syncing...' : 'Backup Now'}
-                                </span>
-                                <span style={{ fontSize: '10px', opacity: 0.85 }}>Push to Firestore</span>
+                                <RefreshCw size={13} /> Quick Snapshot Sync
                             </button>
 
                             <button
                                 type="button"
                                 disabled={cloudLoading !== null}
                                 onClick={async () => {
-                                    if (!window.confirm('This will overwrite ALL local data with the latest cloud backup. Are you sure?')) return;
+                                    if (!window.confirm('This will load all data from your Firestore cloud database into this device. Are you sure?')) return;
                                     setCloudLoading('pull');
-                                    setCloudMsg('Pulling from Firebase cloud...');
+                                    setCloudMsg('Pulling latest data from Firestore cloud...');
                                     const result = await Store.restoreFromCloud();
                                     setCloudLoading(null);
                                     if (result.success) {
-                                        setCloudMsg('✓ Local data restored from cloud backup!');
+                                        setCloudMsg('✓ Device restored 100% from Firestore cloud database!');
                                         setSettings(Store.getSettings());
                                     } else {
-                                        setCloudMsg(`✗ Restore failed: ${result.error || 'No snapshot found'}`);
+                                        setCloudMsg(`✗ Restore failed: ${result.error || 'No records found'}`);
                                     }
-                                    setTimeout(() => setCloudMsg(''), 5000);
+                                    setTimeout(() => setCloudMsg(''), 6000);
                                 }}
                                 style={{
-                                    padding: '10px',
+                                    padding: '9px 12px',
                                     borderRadius: '10px',
                                     border: '1px solid #BAE6FD',
-                                    background: cloudLoading === 'pull' ? '#E0F2FE' : '#F0F9FF',
-                                    color: '#0284C7',
-                                    fontSize: '12.5px',
-                                    fontWeight: 800,
+                                    background: '#FFFFFF',
+                                    color: '#0369A1',
+                                    fontSize: '12px',
+                                    fontWeight: 700,
                                     cursor: cloudLoading !== null ? 'not-allowed' : 'pointer',
                                     display: 'flex',
-                                    flexDirection: 'column',
                                     alignItems: 'center',
-                                    gap: '3px',
-                                    opacity: cloudLoading !== null && cloudLoading !== 'pull' ? 0.5 : 1
+                                    justifyContent: 'center',
+                                    gap: '6px'
                                 }}
                             >
-                                <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                    {cloudLoading === 'pull' ? <RefreshCw size={14} /> : <Download size={14} />}
-                                    {cloudLoading === 'pull' ? 'Restoring...' : 'Restore Cloud'}
-                                </span>
-                                <span style={{ fontSize: '10px', opacity: 0.85 }}>Pull from Firestore</span>
+                                <CloudDownload size={13} /> Restore from Cloud
                             </button>
                         </div>
                     </div>

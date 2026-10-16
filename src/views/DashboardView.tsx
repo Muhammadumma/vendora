@@ -28,7 +28,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     const [products, setProducts] = useState<Product[]>(Store.getProducts());
     const [sales, setSales] = useState<Sale[]>(Store.getSales());
     const [chartRange, setChartRange] = useState<'7' | '30'>('7');
-    const [selectedDate] = useState('2026-10-08');
+    const [selectedDate] = useState(() => new Date().toISOString().split('T')[0]);
     const [toastMessage, setToastMessage] = useState<string>('');
 
     const chartRef = useRef<HTMLCanvasElement | null>(null);
@@ -46,9 +46,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     const user = Store.getUser();
     const userName = user?.name || 'Store Admin';
 
-    // Metrics calculation
-    const today = selectedDate;
-    const todaysSalesData = sales.filter(s => s.date.startsWith(today));
+    // Metrics calculation (local calendar day safe)
+    const nowLocal = new Date();
+    const isSameDay = (dStr: string, target = nowLocal) => {
+        try {
+            const d = new Date(dStr);
+            return d.getFullYear() === target.getFullYear() && d.getMonth() === target.getMonth() && d.getDate() === target.getDate();
+        } catch {
+            return false;
+        }
+    };
+
+    const todaysSalesData = sales.filter(s => isSameDay(s.date));
     const todaysSales = todaysSalesData.reduce((sum, s) => sum + (Number(s.total) || 0), 0);
 
     const todaysProfit = todaysSalesData.reduce((totalProfit, sale) => {
@@ -85,8 +94,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         if (!chartRef.current) return;
         if (chartInstance.current) chartInstance.current.destroy();
 
-        const dateLabels: string[] = ['Oct 2', 'Oct 3', 'Oct 4', 'Oct 5', 'Oct 6', 'Oct 7', 'Oct 8'];
-        const dataValues: number[] = [0, 0, 0, 0, 0, 0, todaysSales];
+        // Build last-7-days labels & map real sales onto them
+        const last7: { label: string; dateObj: Date }[] = [];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            last7.push({
+                label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                dateObj: d
+            });
+        }
+        const dateLabels: string[] = last7.map(d => d.label);
+        const dataValues: number[] = last7.map(({ dateObj }) =>
+            sales
+                .filter(s => isSameDay(s.date, dateObj))
+                .reduce((sum, s) => sum + (Number(s.total) || 0), 0)
+        );
 
         const ctx = chartRef.current.getContext('2d');
         if (ctx) {
@@ -128,7 +151,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         }
 
         return () => { if (chartInstance.current) chartInstance.current.destroy(); };
-    }, [chartRange, todaysSales]);
+    }, [chartRange, sales]);
 
     const recentSales = sales.slice(-3).reverse();
 

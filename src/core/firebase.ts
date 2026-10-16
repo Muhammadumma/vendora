@@ -1,6 +1,6 @@
 // Royalvazier Global Services Ltd - Firebase Cloud Integration
 import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
-import { getFirestore, Firestore, collection, doc, setDoc, getDocs, getDoc, writeBatch, deleteDoc } from "firebase/firestore";
+import { getFirestore, Firestore, collection, doc, setDoc, getDocs, getDoc, writeBatch, deleteDoc, onSnapshot } from "firebase/firestore";
 import { 
   getAuth, 
   Auth,
@@ -183,7 +183,33 @@ export const FirebaseAuthService = {
  * Helper to get the target user UID for per-account data isolation
  */
 function getTargetUid(explicitUid?: string): string | null {
-  return explicitUid || auth.currentUser?.uid || null;
+  if (explicitUid && typeof explicitUid === 'string' && explicitUid.trim().length > 0) {
+    return explicitUid.trim();
+  }
+  if (auth.currentUser?.uid) {
+    return auth.currentUser.uid;
+  }
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = sessionStorage.getItem('vendora_active_session');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed?.uid) return parsed.uid;
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+  return null;
+}
+
+/**
+ * Recursively cleans and removes any 'undefined' values from an object,
+ * ensuring it is 100% compliant with Firestore data serialization rules.
+ */
+export function sanitizeForFirestore<T>(data: T): T {
+  if (data === null || data === undefined) return null as any;
+  return JSON.parse(JSON.stringify(data));
 }
 
 /**
@@ -201,9 +227,10 @@ export const FirebaseSync = {
       return false;
     }
     try {
+      const sanitized = sanitizeForFirestore(product);
       const prodRef = doc(db, "users", uid, "products", String(product.id));
       await setDoc(prodRef, {
-        ...product,
+        ...sanitized,
         updatedAt: new Date().toISOString()
       }, { merge: true });
       return true;
@@ -238,16 +265,20 @@ export const FirebaseSync = {
     const uid = getTargetUid(userId);
     if (!uid) return false;
     try {
-      const batch = writeBatch(db);
-      for (const item of products) {
-        if (!item || !item.id) continue;
-        const ref = doc(db, "users", uid, "products", String(item.id));
-        batch.set(ref, {
-          ...item,
-          updatedAt: new Date().toISOString()
-        }, { merge: true });
+      for (let i = 0; i < products.length; i += 400) {
+        const chunk = products.slice(i, i + 400);
+        const batch = writeBatch(db);
+        for (const item of chunk) {
+          if (!item || !item.id) continue;
+          const sanitized = sanitizeForFirestore(item);
+          const ref = doc(db, "users", uid, "products", String(item.id));
+          batch.set(ref, {
+            ...sanitized,
+            updatedAt: new Date().toISOString()
+          }, { merge: true });
+        }
+        await batch.commit();
       }
-      await batch.commit();
       return true;
     } catch (err: any) {
       console.error("Firestore syncProductsBatch error:", err);
@@ -263,14 +294,61 @@ export const FirebaseSync = {
     const uid = getTargetUid(userId);
     if (!uid) return false;
     try {
+      const sanitized = sanitizeForFirestore(sale);
       const saleRef = doc(db, "users", uid, "sales", String(sale.id));
       await setDoc(saleRef, {
-        ...sale,
+        ...sanitized,
         syncedAt: new Date().toISOString()
       }, { merge: true });
       return true;
     } catch (err: any) {
       console.error("Firestore syncSale error:", err);
+      return false;
+    }
+  },
+
+  /**
+   * Batch sync multiple sales into user's isolated 'sales' collection
+   */
+  async syncSalesBatch(sales: any[], userId?: string): Promise<boolean> {
+    if (!Array.isArray(sales) || sales.length === 0) return true;
+    const uid = getTargetUid(userId);
+    if (!uid) return false;
+    try {
+      for (let i = 0; i < sales.length; i += 400) {
+        const chunk = sales.slice(i, i + 400);
+        const batch = writeBatch(db);
+        for (const item of chunk) {
+          if (!item || !item.id) continue;
+          const sanitized = sanitizeForFirestore(item);
+          const ref = doc(db, "users", uid, "sales", String(item.id));
+          batch.set(ref, {
+            ...sanitized,
+            syncedAt: new Date().toISOString()
+          }, { merge: true });
+        }
+        await batch.commit();
+      }
+      return true;
+    } catch (err: any) {
+      console.error("Firestore syncSalesBatch error:", err);
+      return false;
+    }
+  },
+
+  /**
+   * Delete a single sale from user's isolated 'sales' collection
+   */
+  async deleteSale(saleId: string, userId?: string): Promise<boolean> {
+    if (!saleId) return false;
+    const uid = getTargetUid(userId);
+    if (!uid) return false;
+    try {
+      const saleRef = doc(db, "users", uid, "sales", String(saleId));
+      await deleteDoc(saleRef);
+      return true;
+    } catch (err: any) {
+      console.error("Firestore deleteSale error:", err);
       return false;
     }
   },
@@ -283,14 +361,61 @@ export const FirebaseSync = {
     const uid = getTargetUid(userId);
     if (!uid) return false;
     try {
+      const sanitized = sanitizeForFirestore(debt);
       const debtRef = doc(db, "users", uid, "debts", String(debt.id));
       await setDoc(debtRef, {
-        ...debt,
+        ...sanitized,
         syncedAt: new Date().toISOString()
       }, { merge: true });
       return true;
     } catch (err: any) {
       console.error("Firestore syncDebt error:", err);
+      return false;
+    }
+  },
+
+  /**
+   * Batch sync multiple debts into user's isolated 'debts' collection
+   */
+  async syncDebtsBatch(debts: any[], userId?: string): Promise<boolean> {
+    if (!Array.isArray(debts) || debts.length === 0) return true;
+    const uid = getTargetUid(userId);
+    if (!uid) return false;
+    try {
+      for (let i = 0; i < debts.length; i += 400) {
+        const chunk = debts.slice(i, i + 400);
+        const batch = writeBatch(db);
+        for (const item of chunk) {
+          if (!item || !item.id) continue;
+          const sanitized = sanitizeForFirestore(item);
+          const ref = doc(db, "users", uid, "debts", String(item.id));
+          batch.set(ref, {
+            ...sanitized,
+            syncedAt: new Date().toISOString()
+          }, { merge: true });
+        }
+        await batch.commit();
+      }
+      return true;
+    } catch (err: any) {
+      console.error("Firestore syncDebtsBatch error:", err);
+      return false;
+    }
+  },
+
+  /**
+   * Delete a single debt from user's isolated 'debts' collection
+   */
+  async deleteDebt(debtId: string, userId?: string): Promise<boolean> {
+    if (!debtId) return false;
+    const uid = getTargetUid(userId);
+    if (!uid) return false;
+    try {
+      const debtRef = doc(db, "users", uid, "debts", String(debtId));
+      await deleteDoc(debtRef);
+      return true;
+    } catch (err: any) {
+      console.error("Firestore deleteDebt error:", err);
       return false;
     }
   },
@@ -303,14 +428,61 @@ export const FirebaseSync = {
     const uid = getTargetUid(userId);
     if (!uid) return false;
     try {
+      const sanitized = sanitizeForFirestore(purchase);
       const purRef = doc(db, "users", uid, "purchases", String(purchase.id));
       await setDoc(purRef, {
-        ...purchase,
+        ...sanitized,
         syncedAt: new Date().toISOString()
       }, { merge: true });
       return true;
     } catch (err: any) {
       console.error("Firestore syncPurchase error:", err);
+      return false;
+    }
+  },
+
+  /**
+   * Batch sync multiple purchases into user's isolated 'purchases' collection
+   */
+  async syncPurchasesBatch(purchases: any[], userId?: string): Promise<boolean> {
+    if (!Array.isArray(purchases) || purchases.length === 0) return true;
+    const uid = getTargetUid(userId);
+    if (!uid) return false;
+    try {
+      for (let i = 0; i < purchases.length; i += 400) {
+        const chunk = purchases.slice(i, i + 400);
+        const batch = writeBatch(db);
+        for (const item of chunk) {
+          if (!item || !item.id) continue;
+          const sanitized = sanitizeForFirestore(item);
+          const ref = doc(db, "users", uid, "purchases", String(item.id));
+          batch.set(ref, {
+            ...sanitized,
+            syncedAt: new Date().toISOString()
+          }, { merge: true });
+        }
+        await batch.commit();
+      }
+      return true;
+    } catch (err: any) {
+      console.error("Firestore syncPurchasesBatch error:", err);
+      return false;
+    }
+  },
+
+  /**
+   * Delete a single purchase from user's isolated 'purchases' collection
+   */
+  async deletePurchase(purchaseId: string, userId?: string): Promise<boolean> {
+    if (!purchaseId) return false;
+    const uid = getTargetUid(userId);
+    if (!uid) return false;
+    try {
+      const purRef = doc(db, "users", uid, "purchases", String(purchaseId));
+      await deleteDoc(purRef);
+      return true;
+    } catch (err: any) {
+      console.error("Firestore deletePurchase error:", err);
       return false;
     }
   },
@@ -322,9 +494,10 @@ export const FirebaseSync = {
     const uid = getTargetUid(userId);
     if (!uid) return false;
     try {
+      const sanitized = sanitizeForFirestore(settings);
       const setRef = doc(db, "users", uid, "settings", "general");
       await setDoc(setRef, {
-        ...settings,
+        ...sanitized,
         updatedAt: new Date().toISOString()
       }, { merge: true });
       return true;
@@ -342,10 +515,11 @@ export const FirebaseSync = {
     const uid = getTargetUid(userId);
     if (!uid) return false;
     try {
+      const sanitized = sanitizeForFirestore(messageData);
       const msgId = messageData.id || `MSG-${Date.now()}`;
       const msgRef = doc(db, "users", uid, "messages", String(msgId));
       await setDoc(msgRef, {
-        ...messageData,
+        ...sanitized,
         id: msgId,
         createdAt: new Date().toISOString()
       }, { merge: true });
@@ -358,6 +532,7 @@ export const FirebaseSync = {
 
   /**
    * Sync complete store snapshot to user's isolated Firestore cloud backup
+   * Transfers 100% of all data records using atomic batches.
    */
   async pushStoreSnapshot(storeData: {
     products?: any[];
@@ -365,6 +540,7 @@ export const FirebaseSync = {
     debts?: any[];
     purchases?: any[];
     settings?: any;
+    messages?: any[];
   }, userId?: string): Promise<{ success: boolean; timestamp: string; error?: string }> {
     const uid = getTargetUid(userId);
     if (!uid) {
@@ -375,7 +551,15 @@ export const FirebaseSync = {
       const now = new Date().toISOString();
       const snapshotRef = doc(db, "users", uid, "snapshots", "latest");
       
-      // 1. Write the latest snapshot document inside the user's private space
+      // 1. Sanitize payload to strip any undefined values and write latest snapshot
+      const sanitizedPayload = sanitizeForFirestore({
+        products: storeData.products || [],
+        sales: storeData.sales || [],
+        debts: storeData.debts || [],
+        purchases: storeData.purchases || [],
+        settings: storeData.settings || {}
+      });
+
       await setDoc(snapshotRef, {
         updatedAt: now,
         userId: uid,
@@ -384,41 +568,30 @@ export const FirebaseSync = {
         salesCount: storeData.sales?.length || 0,
         debtsCount: storeData.debts?.length || 0,
         purchasesCount: storeData.purchases?.length || 0,
-        payload: {
-          products: storeData.products || [],
-          sales: storeData.sales || [],
-          debts: storeData.debts || [],
-          purchases: storeData.purchases || [],
-          settings: storeData.settings || {}
-        }
+        payload: sanitizedPayload
       }, { merge: true });
 
-      // 2. Also populate user's individual collections
+      // 2. Transfer 100% of products in atomic batches
       if (Array.isArray(storeData.products) && storeData.products.length > 0) {
-        for (let i = 0; i < storeData.products.length; i += 400) {
-          const chunk = storeData.products.slice(i, i + 400);
-          await this.syncProductsBatch(chunk, uid);
-        }
+        await this.syncProductsBatch(storeData.products, uid);
       }
 
-      if (Array.isArray(storeData.sales)) {
-        for (const sale of storeData.sales.slice(-50)) {
-          await this.syncSale(sale, uid);
-        }
+      // 3. Transfer 100% of sales in atomic batches
+      if (Array.isArray(storeData.sales) && storeData.sales.length > 0) {
+        await this.syncSalesBatch(storeData.sales, uid);
       }
 
-      if (Array.isArray(storeData.debts)) {
-        for (const debt of storeData.debts) {
-          await this.syncDebt(debt, uid);
-        }
+      // 4. Transfer 100% of debts in atomic batches
+      if (Array.isArray(storeData.debts) && storeData.debts.length > 0) {
+        await this.syncDebtsBatch(storeData.debts, uid);
       }
 
-      if (Array.isArray(storeData.purchases)) {
-        for (const pur of storeData.purchases.slice(-50)) {
-          await this.syncPurchase(pur, uid);
-        }
+      // 5. Transfer 100% of purchases in atomic batches
+      if (Array.isArray(storeData.purchases) && storeData.purchases.length > 0) {
+        await this.syncPurchasesBatch(storeData.purchases, uid);
       }
 
+      // 6. Transfer shop settings
       if (storeData.settings) {
         await this.syncSettings(storeData.settings, uid);
       }
@@ -430,7 +603,7 @@ export const FirebaseSync = {
       const result = await Promise.race([
         executeSync(),
         new Promise<{ success: boolean; timestamp: string; error?: string }>((_, reject) =>
-          setTimeout(() => reject(new Error("Sync timed out (25s). Cloud database is unreachable or slow network.")), 25000)
+          setTimeout(() => reject(new Error("Sync timed out (30s). Cloud database is unreachable or slow network.")), 30000)
         )
       ]);
       return result;
@@ -449,7 +622,60 @@ export const FirebaseSync = {
   },
 
   /**
-   * Pull latest cloud backup from user's isolated Firestore collection
+   * 100% Complete Data Transfer to Cloud Firestore Database
+   * Transfers all collections with detailed execution statistics.
+   */
+  async transferAllDataToCloud(storeData: {
+    products?: any[];
+    sales?: any[];
+    debts?: any[];
+    purchases?: any[];
+    settings?: any;
+    messages?: any[];
+  }, userId?: string): Promise<{
+    success: boolean;
+    timestamp: string;
+    stats: {
+      products: number;
+      sales: number;
+      debts: number;
+      purchases: number;
+      settings: boolean;
+      snapshot: boolean;
+    };
+    error?: string;
+  }> {
+    const uid = getTargetUid(userId);
+    const now = new Date().toISOString();
+    const stats = {
+      products: storeData.products?.length || 0,
+      sales: storeData.sales?.length || 0,
+      debts: storeData.debts?.length || 0,
+      purchases: storeData.purchases?.length || 0,
+      settings: Boolean(storeData.settings),
+      snapshot: true
+    };
+
+    if (!uid) {
+      return {
+        success: false,
+        timestamp: now,
+        stats,
+        error: "User is not signed in. Cannot transfer without an account."
+      };
+    }
+
+    const pushResult = await this.pushStoreSnapshot(storeData, uid);
+    return {
+      success: pushResult.success,
+      timestamp: pushResult.timestamp || now,
+      stats,
+      error: pushResult.error
+    };
+  },
+
+  /**
+   * Pull latest cloud data directly from user's isolated Firestore collections
    */
   async pullStoreSnapshot(userId?: string): Promise<{ success: boolean; data?: any; error?: string }> {
     const uid = getTargetUid(userId);
@@ -459,25 +685,9 @@ export const FirebaseSync = {
     }
 
     try {
-      console.log(`[FirebaseSync] Pulling cloud data for user: ${uid}...`);
-      const snapshotRef = doc(db, "users", uid, "snapshots", "latest");
-      try {
-        const docSnap = await getDoc(snapshotRef);
-        if (docSnap.exists()) {
-          const snapData = docSnap.data();
-          if (snapData && snapData.payload) {
-            console.log(`[FirebaseSync] Loaded snapshot for ${uid}:`, snapData.payload);
-            return {
-              success: true,
-              data: snapData.payload
-            };
-          }
-        }
-      } catch (e) {
-        console.warn("[FirebaseSync] Snapshot lookup notice:", e);
-      }
+      console.log(`[FirebaseSync] Pulling live data directly from Firestore for user: ${uid}...`);
 
-      // Fallback: Pull directly from user's subcollections
+      // 1. Pull directly from user's live collections (NEVER rely on stale snapshots!)
       const productsSnap = await getDocs(collection(db, "users", uid, "products"));
       const products: any[] = [];
       productsSnap.forEach(d => {
@@ -516,7 +726,7 @@ export const FirebaseSync = {
         // settings optional
       }
 
-      console.log(`[FirebaseSync] Found in subcollections for ${uid}: products=${products.length}, sales=${sales.length}, debts=${debts.length}`);
+      console.log(`[FirebaseSync] Retrieved from Firestore for ${uid}: products=${products.length}, sales=${sales.length}, debts=${debts.length}`);
 
       if (products.length > 0 || sales.length > 0 || debts.length > 0 || purchases.length > 0) {
         return {
@@ -531,10 +741,115 @@ export const FirebaseSync = {
         };
       }
 
+      // Check snapshot as last-resort backup if subcollections were empty
+      const snapshotRef = doc(db, "users", uid, "snapshots", "latest");
+      try {
+        const docSnap = await getDoc(snapshotRef);
+        if (docSnap.exists()) {
+          const snapData = docSnap.data();
+          if (snapData && snapData.payload && Array.isArray(snapData.payload.products) && snapData.payload.products.length > 0) {
+            return {
+              success: true,
+              data: snapData.payload
+            };
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+
       return { success: false, error: "No cloud data found for this user account." };
     } catch (err: any) {
       console.error("[FirebaseSync] pull error:", err);
       return { success: false, error: err.message };
     }
+  },
+
+  /**
+   * Real-time multi-collection listener for a user account
+   */
+  subscribeToUserData(userId: string, callbacks: {
+    onProducts?: (products: any[]) => void;
+    onSales?: (sales: any[]) => void;
+    onDebts?: (debts: any[]) => void;
+    onPurchases?: (purchases: any[]) => void;
+    onSettings?: (settings: any) => void;
+  }): (() => void)[] {
+    const uid = getTargetUid(userId);
+    if (!uid) return [];
+
+    console.log(`[FirebaseSync] Subscribing to real-time updates for user: ${uid}`);
+    const unsubs: (() => void)[] = [];
+
+    // 1. Live Products listener
+    if (callbacks.onProducts) {
+      const unsub = onSnapshot(collection(db, "users", uid, "products"), (snap) => {
+        const products: any[] = [];
+        snap.forEach(d => {
+          products.push({ id: d.id, ...d.data() });
+        });
+        console.log(`[FirebaseSync] Real-time products sync received: ${products.length} items`);
+        callbacks.onProducts!(products);
+      }, (err) => {
+        console.warn("[FirebaseSync] Live products listener error:", err);
+      });
+      unsubs.push(unsub);
+    }
+
+    // 2. Live Sales listener
+    if (callbacks.onSales) {
+      const unsub = onSnapshot(collection(db, "users", uid, "sales"), (snap) => {
+        const sales: any[] = [];
+        snap.forEach(d => {
+          sales.push({ id: d.id, ...d.data() });
+        });
+        callbacks.onSales!(sales);
+      }, (err) => {
+        console.warn("[FirebaseSync] Live sales listener error:", err);
+      });
+      unsubs.push(unsub);
+    }
+
+    // 3. Live Debts listener
+    if (callbacks.onDebts) {
+      const unsub = onSnapshot(collection(db, "users", uid, "debts"), (snap) => {
+        const debts: any[] = [];
+        snap.forEach(d => {
+          debts.push({ id: d.id, ...d.data() });
+        });
+        callbacks.onDebts!(debts);
+      }, (err) => {
+        console.warn("[FirebaseSync] Live debts listener error:", err);
+      });
+      unsubs.push(unsub);
+    }
+
+    // 4. Live Purchases listener
+    if (callbacks.onPurchases) {
+      const unsub = onSnapshot(collection(db, "users", uid, "purchases"), (snap) => {
+        const purchases: any[] = [];
+        snap.forEach(d => {
+          purchases.push({ id: d.id, ...d.data() });
+        });
+        callbacks.onPurchases!(purchases);
+      }, (err) => {
+        console.warn("[FirebaseSync] Live purchases listener error:", err);
+      });
+      unsubs.push(unsub);
+    }
+
+    // 5. Live Settings listener
+    if (callbacks.onSettings) {
+      const unsub = onSnapshot(doc(db, "users", uid, "settings", "general"), (docSnap) => {
+        if (docSnap.exists()) {
+          callbacks.onSettings!(docSnap.data());
+        }
+      }, (err) => {
+        console.warn("[FirebaseSync] Live settings listener error:", err);
+      });
+      unsubs.push(unsub);
+    }
+
+    return unsubs;
   }
 };

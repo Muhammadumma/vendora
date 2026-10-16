@@ -129,6 +129,20 @@ function loadInitialSession(): UserSession | null {
     return null;
 }
 
+function loadFromStorage<T>(key: string, fallback: T): T {
+    if (typeof window === 'undefined') return fallback;
+    try {
+        const raw = localStorage.getItem(key);
+        if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed !== undefined && parsed !== null) return parsed;
+        }
+    } catch (e) {
+        console.warn(`Failed to read ${key} from storage:`, e);
+    }
+    return fallback;
+}
+
 type Listener = () => void;
 
 class StoreClass {
@@ -136,18 +150,82 @@ class StoreClass {
 
     public state = {
         activeSession: loadInitialSession(),
-        products: [] as Product[],
-        sales: [] as Sale[],
-        purchases: [] as Purchase[],
-        debts: [] as Debt[],
-        settings: { ...defaultRoyalvazierSettings } as Settings,
+        products: loadFromStorage<Product[]>('bc_products', []),
+        sales: loadFromStorage<Sale[]>('bc_sales', []),
+        purchases: loadFromStorage<Purchase[]>('bc_purchases', []),
+        debts: loadFromStorage<Debt[]>('bc_debts', []),
+        settings: { ...defaultRoyalvazierSettings, ...loadFromStorage<Partial<Settings>>('bc_settings', {}) } as Settings,
         isSyncing: false,
-        lastSyncTimestamp: null as string | null,
+        lastSyncTimestamp: loadFromStorage<string | null>('bc_last_sync', null),
         lastSyncError: null as string | null
     };
 
     private autoSyncTimer: any = null;
     private _auditLog: any[] = [];
+    private _cloudUnsubs: (() => void)[] = [];
+
+    constructor() {
+        const initial = this.state.activeSession;
+        if (initial?.uid) {
+            this.initCloudSync(initial.uid);
+        }
+    }
+
+    initCloudSync(uid: string) {
+        if (!uid) return;
+        this.stopCloudSync();
+        console.log('[Store] Initializing live Firestore sync for:', uid);
+        this._cloudUnsubs = FirebaseSync.subscribeToUserData(uid, {
+            onProducts: (products) => {
+                if (products.length === 0 && this.state.products.length > 0) {
+                    FirebaseSync.syncProductsBatch(this.state.products, uid).catch(e => console.warn(e));
+                    return;
+                }
+                this.state.products = products;
+                this._save('bc_products', products);
+                this.notify();
+            },
+            onSales: (sales) => {
+                if (sales.length === 0 && this.state.sales.length > 0) {
+                    FirebaseSync.syncSalesBatch(this.state.sales, uid).catch(e => console.warn(e));
+                    return;
+                }
+                this.state.sales = sales;
+                this._save('bc_sales', sales);
+                this.notify();
+            },
+            onDebts: (debts) => {
+                if (debts.length === 0 && this.state.debts.length > 0) {
+                    FirebaseSync.syncDebtsBatch(this.state.debts, uid).catch(e => console.warn(e));
+                    return;
+                }
+                this.state.debts = debts;
+                this._save('bc_debts', debts);
+                this.notify();
+            },
+            onPurchases: (purchases) => {
+                if (purchases.length === 0 && this.state.purchases.length > 0) {
+                    FirebaseSync.syncPurchasesBatch(this.state.purchases, uid).catch(e => console.warn(e));
+                    return;
+                }
+                this.state.purchases = purchases;
+                this._save('bc_purchases', purchases);
+                this.notify();
+            },
+            onSettings: (settings) => {
+                this.state.settings = { ...this.state.settings, ...settings };
+                this._save('bc_settings', this.state.settings);
+                this.notify();
+            }
+        });
+    }
+
+    stopCloudSync() {
+        if (this._cloudUnsubs.length > 0) {
+            this._cloudUnsubs.forEach(unsub => unsub());
+            this._cloudUnsubs = [];
+        }
+    }
 
     queueAutoSync() {
         if (!this.state.activeSession?.isLoggedIn || !this.state.activeSession?.uid) return;
@@ -254,6 +332,7 @@ class StoreClass {
         this.state.activeSession = user;
         try { sessionStorage.setItem('vendora_active_session', JSON.stringify(user)); } catch (e) {}
         this.notify();
+        this.initCloudSync(user.uid);
         return user;
     }
 
@@ -283,6 +362,7 @@ class StoreClass {
     }
 
     logout() {
+        this.stopCloudSync();
         this.state.activeSession = null;
         try { sessionStorage.removeItem('vendora_active_session'); } catch (e) {}
         this.clearAllData();
@@ -292,17 +372,18 @@ class StoreClass {
 
     // Products
     addProduct(product: Partial<Product> & { name: string }) {
-        const generatedId = product.id || (product.sku ? `prod-${product.sku}` : Date.now().toString());
+        const cleanSku = product.sku ? String(product.sku).trim() : undefined;
+        const generatedId = product.id || (cleanSku ? `prod-${cleanSku.replace(/\s+/g, '-').toLowerCase()}` : `prod-${Date.now()}`);
         const newProd: Product = {
             id: generatedId,
-            sku: product.sku ? String(product.sku).trim() : undefined,
-            name: product.name,
-            category: product.category || 'General',
-            qty: Number.isFinite(Number(product.qty)) ? Number(product.qty) : 0,
-            buyPrice: Number.isFinite(Number(product.buyPrice)) ? Number(product.buyPrice) : 0,
-            sellPrice: Number.isFinite(Number(product.sellPrice)) ? Number(product.sellPrice) : 0,
-            supplier: product.supplier || '',
-            threshold: Number.isInteger(Number(product.threshold)) ? Number(product.threshold) : 5,
+            sku: cleanSku,
+            name: product.name.trim(),
+            category: (product.category || 'General').trim(),
+            qty: Math.max(0, Number.isFinite(Number(product.qty)) ? Number(product.qty) : 0),
+            buyPrice: Math.max(0, Number.isFinite(Number(product.buyPrice)) ? Number(product.buyPrice) : 0),
+            sellPrice: Math.max(0, Number.isFinite(Number(product.sellPrice)) ? Number(product.sellPrice) : 0),
+            supplier: (product.supplier || '').trim(),
+            threshold: Math.max(0, Number.isInteger(Number(product.threshold)) ? Number(product.threshold) : 5),
             warnings: Array.isArray(product.warnings) ? product.warnings : [],
             createdAt: product.createdAt || new Date().toISOString()
         };
@@ -337,7 +418,15 @@ class StoreClass {
     updateProduct(id: string, updates: Partial<Product>) {
         const index = this.state.products.findIndex(p => p.id === id);
         if (index !== -1) {
-            this.state.products[index] = { ...this.state.products[index], ...updates };
+            const sanitizedUpdates: Partial<Product> = { ...updates };
+            if (updates.name !== undefined) sanitizedUpdates.name = String(updates.name).trim();
+            if (updates.category !== undefined) sanitizedUpdates.category = String(updates.category).trim();
+            if (updates.qty !== undefined) sanitizedUpdates.qty = Math.max(0, Number(updates.qty) || 0);
+            if (updates.buyPrice !== undefined) sanitizedUpdates.buyPrice = Math.max(0, Number(updates.buyPrice) || 0);
+            if (updates.sellPrice !== undefined) sanitizedUpdates.sellPrice = Math.max(0, Number(updates.sellPrice) || 0);
+            if (updates.threshold !== undefined) sanitizedUpdates.threshold = Math.max(0, Number(updates.threshold) || 5);
+
+            this.state.products[index] = { ...this.state.products[index], ...sanitizedUpdates };
             this._save('bc_products', this.state.products);
             this.notify();
             FirebaseSync.syncProduct(this.state.products[index]).catch(e => console.warn("Firestore product update sync:", e));
@@ -358,8 +447,8 @@ class StoreClass {
         const sale: Sale = {
             id: saleData.id || 'SALE-' + Date.now(),
             date: saleData.date || new Date().toISOString(),
-            customerName: saleData.customerName || 'Walk-in Customer',
-            customerPhone: saleData.customerPhone || '',
+            customerName: (saleData.customerName || 'Walk-in Customer').trim(),
+            customerPhone: (saleData.customerPhone || '').trim(),
             paymentMethod: saleData.paymentMethod || 'Cash',
             items: saleData.items,
             subtotal: saleData.subtotal ?? saleData.total,
@@ -382,14 +471,18 @@ class StoreClass {
         if (sale.paymentMethod === 'Debt') {
             const stockValue = this.getTotalStockValue();
             const currentDebt = this.getActiveDebtTotal();
-            if ((currentDebt + sale.total) > (stockValue * 0.3) && stockValue > 0) {
-                throw new Error(`Debt Limit Exceeded! Active debt cannot exceed 30% of total inventory value.`);
+            if (stockValue > 0 && (currentDebt + sale.total) > (stockValue * 0.3)) {
+                throw new Error(`Debt Limit Exceeded! Active debt (₦${(currentDebt + sale.total).toLocaleString()}) cannot exceed 30% of total inventory value (₦${Math.round(stockValue * 0.3).toLocaleString()}).`);
             }
+
+            const itemSummary = sale.items && sale.items.length > 0
+                ? sale.items.map(it => `${it.name} (x${it.qty})`).join(', ')
+                : `Sale #${sale.id.replace(/^SALE-/, '')}`;
 
             this.addDebt({
                 debtor: sale.customerName || 'Customer',
                 phone: sale.customerPhone || '',
-                product: `Sale #${sale.id.split('-')[1] || sale.id} (${sale.items.length} items)`,
+                product: itemSummary,
                 amount: sale.total,
                 dueDate: sale.dueDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
                 items: sale.items,
@@ -452,17 +545,17 @@ class StoreClass {
         if (!force) {
             const stockValue = this.getTotalStockValue();
             const currentDebt = this.getActiveDebtTotal();
-            if ((currentDebt + debtData.amount) > (stockValue * 0.3) && stockValue > 0) {
+            if (stockValue > 0 && (currentDebt + debtData.amount) > (stockValue * 0.3)) {
                 throw new Error(`Debt Limit Exceeded! Active debt cannot exceed 30% of total inventory value.`);
             }
         }
 
         const debt: Debt = {
             id: debtData.id || 'DEBT-' + Date.now(),
-            debtor: debtData.debtor,
-            phone: debtData.phone || '',
+            debtor: debtData.debtor.trim(),
+            phone: (debtData.phone || '').trim(),
             product: debtData.product || 'Unspecified goods',
-            amount: Number(debtData.amount),
+            amount: Math.max(0, Number(debtData.amount) || 0),
             dueDate: debtData.dueDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
             status: debtData.status || 'Pending',
             createdAt: debtData.createdAt || new Date().toISOString(),
@@ -497,39 +590,77 @@ class StoreClass {
         }
     }
 
-    settleDebt(id: string): Sale | null {
+    settleDebt(id: string, paymentMethod: string = 'Cash'): Sale | null {
         const index = this.state.debts.findIndex(d => d.id === id);
         if (index !== -1) {
             const debt = this.state.debts[index];
             debt.status = 'Paid';
             debt.settledDate = new Date().toISOString();
 
-            const settlementSale: Sale = {
-                id: 'SETTLE-' + Date.now(),
-                date: debt.settledDate,
-                customerName: debt.debtor,
-                customerPhone: debt.phone,
-                paymentMethod: 'Debt Settlement',
-                items: debt.items && debt.items.length > 0 ? debt.items : [{
-                    name: `Debt Settlement: ${debt.product}`,
-                    qty: 1,
-                    price: debt.amount,
-                    buyPrice: 0
-                }],
-                subtotal: debt.amount,
-                vat: 0,
-                total: debt.amount,
-                profit: debt.amount,
-                isSettlement: true
-            };
+            // Check if there was an existing source sale recorded when credit was issued
+            const existingSaleIndex = debt.sourceSaleId 
+                ? this.state.sales.findIndex(s => s.id === debt.sourceSaleId) 
+                : -1;
 
-            debt.sourceSaleId = settlementSale.id;
-            this.state.sales.push(settlementSale);
-            this._save('bc_sales', this.state.sales);
+            let settlementSale: Sale;
+
+            if (existingSaleIndex !== -1) {
+                // Update the existing sale with payment confirmation
+                const existingSale = this.state.sales[existingSaleIndex];
+                existingSale.paymentMethod = `Debt Cleared (${paymentMethod})`;
+                existingSale.dueDate = undefined;
+                this._save('bc_sales', this.state.sales);
+                FirebaseSync.syncSale(existingSale).catch(e => console.warn("Firestore sale sync:", e));
+
+                // Generate a settlement receipt (zero additional profit, marked settlement to prevent double counting)
+                settlementSale = {
+                    id: 'SETTLE-' + Date.now(),
+                    date: debt.settledDate,
+                    customerName: debt.debtor,
+                    customerPhone: debt.phone,
+                    paymentMethod: `Debt Settlement (${paymentMethod})`,
+                    items: debt.items && debt.items.length > 0 ? debt.items : [{
+                        name: `Debt Cleared: ${debt.product}`,
+                        qty: 1,
+                        price: debt.amount,
+                        buyPrice: 0
+                    }],
+                    subtotal: debt.amount,
+                    vat: 0,
+                    total: debt.amount,
+                    profit: 0,
+                    isSettlement: true
+                };
+            } else {
+                // Standalone debt created without a prior POS sale.
+                // Now entering sales ledger as realized revenue.
+                settlementSale = {
+                    id: 'SETTLE-' + Date.now(),
+                    date: debt.settledDate,
+                    customerName: debt.debtor,
+                    customerPhone: debt.phone,
+                    paymentMethod: `Debt Settlement (${paymentMethod})`,
+                    items: debt.items && debt.items.length > 0 ? debt.items : [{
+                        name: `Debt Settlement: ${debt.product}`,
+                        qty: 1,
+                        price: debt.amount,
+                        buyPrice: 0
+                    }],
+                    subtotal: debt.amount,
+                    vat: 0,
+                    total: debt.amount,
+                    profit: debt.amount,
+                    isSettlement: true
+                };
+                this.state.sales.push(settlementSale);
+                this._save('bc_sales', this.state.sales);
+                FirebaseSync.syncSale(settlementSale).catch(e => console.warn("Firestore settlement sale sync:", e));
+            }
+
+            debt.sourceSaleId = debt.sourceSaleId || settlementSale.id;
             this._save('bc_debts', this.state.debts);
             this.notify();
             FirebaseSync.syncDebt(debt).catch(e => console.warn("Firestore debt settle sync:", e));
-            FirebaseSync.syncSale(settlementSale).catch(e => console.warn("Firestore settlement sale sync:", e));
             this.queueAutoSync();
             return settlementSale;
         }
@@ -541,12 +672,14 @@ class StoreClass {
             const found = this.state.sales.find(s => s.id === debt.sourceSaleId);
             if (found) return found;
         }
+        const isPaid = debt.status === 'Paid' || debt.status === 'Settled';
         return {
             id: debt.id,
             date: debt.settledDate || debt.createdAt,
             customerName: debt.debtor,
             customerPhone: debt.phone,
-            paymentMethod: debt.status === 'Paid' ? 'Debt Settlement (Paid)' : 'Credit Sale (Pending)',
+            paymentMethod: isPaid ? 'Debt Settlement (Paid)' : 'Credit Sale (Pending)',
+            dueDate: debt.dueDate,
             items: debt.items && debt.items.length > 0 ? debt.items : [{
                 name: debt.product || 'Items on Credit',
                 qty: 1,
@@ -556,7 +689,8 @@ class StoreClass {
             subtotal: debt.amount,
             vat: 0,
             total: debt.amount,
-            profit: 0
+            profit: 0,
+            isSettlement: isPaid
         };
     }
 
@@ -620,13 +754,21 @@ class StoreClass {
         document.body.removeChild(a);
     }
 
-    restoreBackup(jsonString: string): boolean {
+    restoreBackup(jsonString: string, preserveLocalIfEmpty = false): boolean {
         try {
             const data = JSON.parse(jsonString);
-            this.state.products = Array.isArray(data.products) ? data.products : [];
-            this.state.sales = Array.isArray(data.sales) ? data.sales : [];
-            this.state.purchases = Array.isArray(data.purchases) ? data.purchases : [];
-            this.state.debts = Array.isArray(data.debts) ? data.debts : [];
+            if (Array.isArray(data.products) && (data.products.length > 0 || !preserveLocalIfEmpty || this.state.products.length === 0)) {
+                this.state.products = data.products;
+            }
+            if (Array.isArray(data.sales) && (data.sales.length > 0 || !preserveLocalIfEmpty || this.state.sales.length === 0)) {
+                this.state.sales = data.sales;
+            }
+            if (Array.isArray(data.purchases) && (data.purchases.length > 0 || !preserveLocalIfEmpty || this.state.purchases.length === 0)) {
+                this.state.purchases = data.purchases;
+            }
+            if (Array.isArray(data.debts) && (data.debts.length > 0 || !preserveLocalIfEmpty || this.state.debts.length === 0)) {
+                this.state.debts = data.debts;
+            }
             if (data.settings) {
                 this.state.settings = { ...defaultRoyalvazierSettings, ...data.settings };
             }
@@ -649,6 +791,18 @@ class StoreClass {
         if (this.autoSyncTimer) {
             clearTimeout(this.autoSyncTimer);
             this.autoSyncTimer = null;
+        }
+        try {
+            if (typeof window !== 'undefined') {
+                localStorage.removeItem('bc_products');
+                localStorage.removeItem('bc_sales');
+                localStorage.removeItem('bc_purchases');
+                localStorage.removeItem('bc_debts');
+                localStorage.removeItem('bc_settings');
+                localStorage.removeItem('bc_last_sync');
+            }
+        } catch (e) {
+            console.warn('Failed to clear local storage:', e);
         }
         this.notify();
     }
@@ -698,6 +852,66 @@ class StoreClass {
         }
     }
 
+    /**
+     * Complete 100% Data Transfer to Firestore Cloud Database
+     * Transfers all products, sales, debts, purchases, settings, and snapshots.
+     */
+    async transferToCloud(): Promise<{
+        success: boolean;
+        timestamp?: string;
+        stats?: {
+            products: number;
+            sales: number;
+            debts: number;
+            purchases: number;
+            settings: boolean;
+            snapshot: boolean;
+        };
+        error?: string;
+    }> {
+        const uid = this.state.activeSession?.uid;
+        if (!uid) {
+            return { success: false, error: 'User is not signed in. Please sign in to transfer data to the cloud.' };
+        }
+        if (this.state.isSyncing) {
+            return { success: false, error: 'Transfer already in progress. Please wait a moment.' };
+        }
+        this.state.isSyncing = true;
+        this.state.lastSyncError = null;
+        this.notify();
+
+        const safetyTimer = setTimeout(() => {
+            if (this.state.isSyncing) {
+                this.state.isSyncing = false;
+                this.notify();
+            }
+        }, 35000);
+
+        try {
+            const result = await FirebaseSync.transferAllDataToCloud({
+                products: this.state.products,
+                sales: this.state.sales,
+                debts: this.state.debts,
+                purchases: this.state.purchases,
+                settings: this.state.settings
+            }, uid);
+            if (result.success) {
+                this.state.lastSyncTimestamp = result.timestamp || new Date().toISOString();
+                this.state.lastSyncError = null;
+            } else {
+                this.state.lastSyncError = result.error || 'Transfer failed';
+            }
+            return result;
+        } catch (err: any) {
+            this.state.lastSyncError = err.message || 'Transfer failed';
+            return { success: false, error: err.message };
+        } finally {
+            clearTimeout(safetyTimer);
+            this.state.isSyncing = false;
+            this.notify();
+        }
+    }
+
     async restoreFromCloud(): Promise<{ success: boolean; error?: string }> {
         const uid = this.state.activeSession?.uid;
         if (!uid) {
@@ -706,14 +920,11 @@ class StoreClass {
         this.state.isSyncing = true;
         this.notify();
         try {
+            this.initCloudSync(uid);
             const result = await FirebaseSync.pullStoreSnapshot(uid);
-            if (!result.success || !result.data) {
-                // User has no cloud data yet — keep their account cleanly fresh
-                this.state.isSyncing = false;
-                this.notify();
-                return { success: true };
+            if (result.success && result.data) {
+                this.restoreBackup(JSON.stringify(result.data), true);
             }
-            this.restoreBackup(JSON.stringify(result.data));
             this.state.isSyncing = false;
             this.notify();
             return { success: true };
@@ -724,9 +935,14 @@ class StoreClass {
         }
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    private _save(_key: string, _data: any) {
-        // localStorage disabled — Firestore is the only persistence layer
+    private _save(key: string, data: any) {
+        try {
+            if (typeof window !== 'undefined') {
+                localStorage.setItem(key, JSON.stringify(data));
+            }
+        } catch (e) {
+            console.warn(`Storage save failed for ${key}:`, e);
+        }
     }
 }
 

@@ -29,6 +29,11 @@ export const TopBar: React.FC<TopBarProps> = ({
         if (val.trim().length >= 2) {
             window.location.hash = `#search?q=${encodeURIComponent(val.trim())}`;
             onSearch(val.trim());
+        } else if (val.trim().length === 0) {
+            onSearch('');
+            if (window.location.hash.startsWith('#search')) {
+                window.location.hash = '#dashboard';
+            }
         }
     };
 

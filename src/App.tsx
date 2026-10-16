@@ -60,6 +60,7 @@ export const App: React.FC = () => {
     useEffect(() => {
         const u = Store.getUser();
         if (u?.uid) {
+            Store.initCloudSync(u.uid);
             Store.restoreFromCloud().catch(e => console.warn('Mount restore:', e));
         }
     }, []);
@@ -81,8 +82,11 @@ export const App: React.FC = () => {
                     const session = Store.loginWithFirebaseUser(fbUser, provider);
                     setUser(session);
                     await Store.restoreFromCloud();
-                } else if (Store.getProducts().length === 0) {
-                    await Store.restoreFromCloud();
+                } else {
+                    Store.initCloudSync(fbUser.uid);
+                    if (Store.getProducts().length === 0) {
+                        await Store.restoreFromCloud();
+                    }
                 }
             } else {
                 if (Store.getUser()) {
@@ -100,9 +104,8 @@ export const App: React.FC = () => {
 
     const handleSync = async () => {
         setIsSyncing(true);
-        // Pull latest from cloud and push memory updates
-        await Store.restoreFromCloud();
-        await Store.syncWithFirestore();
+        // Transfer 100% of memory state (sales, products, debts, purchases) to Firestore cloud
+        await Store.transferToCloud();
         setIsSyncing(false);
     };
 

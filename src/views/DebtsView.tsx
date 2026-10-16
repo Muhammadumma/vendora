@@ -26,6 +26,7 @@ export const DebtsView: React.FC = () => {
     const [showAddModal, setShowAddModal] = useState(false);
     const [settleModalDebt, setSettleModalDebt] = useState<Debt | null>(null);
     const [receiptModalSale, setReceiptModalSale] = useState<Sale | null>(null);
+    const [viewingDebt, setViewingDebt] = useState<Debt | null>(null);
     const [settlePaymentMethod, setSettlePaymentMethod] = useState<'Cash' | 'Bank' | 'POS'>('Cash');
 
     // Add debt form state
@@ -74,9 +75,10 @@ export const DebtsView: React.FC = () => {
 
     // Settle debt
     const handleConfirmSettle = (debt: Debt) => {
-        const settlementSale = Store.settleDebt(debt.id);
+        const settlementSale = Store.settleDebt(debt.id, settlePaymentMethod);
         setSettleModalDebt(null);
-        setFeedbackMsg(`Settled: ₦${Number(debt.amount).toLocaleString()} from ${debt.debtor}`);
+        setViewingDebt({ ...debt, status: 'Paid', settledDate: new Date().toISOString() });
+        setFeedbackMsg(`Settled: ₦${Number(debt.amount).toLocaleString()} from ${debt.debtor} via ${settlePaymentMethod}`);
         setTimeout(() => setFeedbackMsg(''), 3500);
 
         const saleForReceipt = settlementSale || Store.getDebtReceipt(debt);
@@ -86,6 +88,7 @@ export const DebtsView: React.FC = () => {
     // View receipt for any debt
     const handleViewReceipt = (debt: Debt) => {
         setOpenMenuId(null);
+        setViewingDebt(debt);
         const sale = Store.getDebtReceipt(debt);
         setReceiptModalSale(sale);
     };
@@ -642,12 +645,17 @@ export const DebtsView: React.FC = () => {
                         )}
 
                         <div style={{ padding: '12px 14px', maxHeight: '64vh', overflowY: 'auto' }}>
-                            <ReceiptTicket
-                                sale={receiptModalSale}
-                                settings={Store.getSettings()}
-                                title="Settlement Confirmed!"
-                                isSettlement={true}
-                            />
+                            {receiptModalSale && (() => {
+                                const isPaid = receiptModalSale.isSettlement || viewingDebt?.status === 'Paid' || viewingDebt?.status === 'Settled';
+                                return (
+                                    <ReceiptTicket
+                                        sale={receiptModalSale}
+                                        settings={Store.getSettings()}
+                                        title={isPaid ? "Debt Settlement Confirmed!" : "Credit Sale Issued"}
+                                        isSettlement={isPaid}
+                                    />
+                                );
+                            })()}
                         </div>
 
                         <div style={{ padding: '12px 18px', borderTop: '1px solid #F1F5F9', display: 'flex', gap: '6px' }}>

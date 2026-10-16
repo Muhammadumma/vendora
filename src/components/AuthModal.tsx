@@ -522,6 +522,35 @@ export const AuthModal: React.FC<AuthModalProps> = ({ user, onLoginSuccess }) =>
                             Back to <span style={{ textDecoration: 'underline' }}>Sign In</span>
                         </button>
                     )}
+
+                    <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid #F1F5F9', textAlign: 'center' }}>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                const localName = emailOrUsername.trim() || 'Store Admin';
+                                Store.login(localName, password || '123456');
+                                const active = Store.getUser();
+                                if (active) {
+                                    onLoginSuccess(active);
+                                }
+                            }}
+                            style={{
+                                background: 'none',
+                                border: 'none',
+                                color: '#64748B',
+                                fontSize: '12px',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px'
+                            }}
+                            title="Access store locally without internet connection"
+                        >
+                            <ShieldAlert size={14} color="#64748B" />
+                            <span>Work in Offline / Standalone Mode</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
