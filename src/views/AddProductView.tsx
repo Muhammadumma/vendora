@@ -42,6 +42,7 @@ export const AddProductView: React.FC<AddProductViewProps> = ({ onNavigate }) =>
     const [unitCost, setUnitCost] = useState<number | string>('');
     const [sellingPrice, setSellingPrice] = useState<number | string>('');
     const [supplier, setSupplier] = useState('');
+    const [owner, setOwner] = useState('In-House (Royalvazier)');
     const [thresholdValue, setThresholdValue] = useState<number | string>(5);
     const [successMessage, setSuccessMessage] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
@@ -83,6 +84,8 @@ export const AddProductView: React.FC<AddProductViewProps> = ({ onNavigate }) =>
             qty: countNum,
             buyPrice: costNum,
             sellPrice: sellNum,
+            owner: owner.trim() || 'In-House (Royalvazier)',
+            vendor: owner.trim() || 'In-House (Royalvazier)',
             supplier: supplier.trim() || 'Direct Wholesaler',
             threshold: Number(thresholdValue) || 5
         });
@@ -137,6 +140,8 @@ export const AddProductView: React.FC<AddProductViewProps> = ({ onNavigate }) =>
             qty: r.data!.qty,
             buyPrice: r.data!.cost,
             sellPrice: r.data!.price,
+            owner: r.data!.supplier || 'In-House (Royalvazier)',
+            vendor: r.data!.supplier || 'In-House (Royalvazier)',
             supplier: r.data!.supplier,
             threshold: r.data!.threshold,
             warnings: r.warnings
@@ -209,8 +214,8 @@ High Threshold Warning,Pantry,SKU-HIGHTHRESH-01,10,2000,2500,Supplier,999`;
                 </p>
             </div>
 
-            {/* Compact Tab Switcher */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', background: '#F1F5F9', padding: '3px', borderRadius: '12px', marginBottom: '14px' }}>
+            {/* Compact Tab Switcher (Glassmorphism) */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', background: 'var(--glass-bg, rgba(241, 245, 249, 0.75))', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid var(--border-color)', padding: '4px', borderRadius: '12px', marginBottom: '14px' }}>
                 <button
                     type="button"
                     onClick={() => setTab('single')}
@@ -218,12 +223,14 @@ High Threshold Warning,Pantry,SKU-HIGHTHRESH-01,10,2000,2500,Supplier,999`;
                         padding: '9px',
                         borderRadius: '9px',
                         border: 'none',
-                        background: tab === 'single' ? '#FFFFFF' : 'transparent',
-                        color: tab === 'single' ? '#F95721' : '#64748B',
+                        background: tab === 'single' ? 'var(--bg-card, #FFFFFF)' : 'transparent',
+                        color: tab === 'single' ? 'var(--primary-color, #F95721)' : 'var(--text-secondary, #64748B)',
                         fontWeight: 800,
                         fontSize: '13px',
                         cursor: 'pointer',
-                        boxShadow: tab === 'single' ? '0 1px 3px rgba(0,0,0,0.06)' : 'none'
+                        backdropFilter: tab === 'single' ? 'blur(8px)' : 'none',
+                        WebkitBackdropFilter: tab === 'single' ? 'blur(8px)' : 'none',
+                        boxShadow: tab === 'single' ? '0 2px 8px rgba(0,0,0,0.08)' : 'none'
                     }}
                 >
                     Single Product
@@ -235,12 +242,14 @@ High Threshold Warning,Pantry,SKU-HIGHTHRESH-01,10,2000,2500,Supplier,999`;
                         padding: '9px',
                         borderRadius: '9px',
                         border: 'none',
-                        background: tab === 'batch' ? '#FFFFFF' : 'transparent',
-                        color: tab === 'batch' ? '#F95721' : '#64748B',
+                        background: tab === 'batch' ? 'var(--bg-card, #FFFFFF)' : 'transparent',
+                        color: tab === 'batch' ? 'var(--primary-color, #F95721)' : 'var(--text-secondary, #64748B)',
                         fontWeight: 800,
                         fontSize: '13px',
                         cursor: 'pointer',
-                        boxShadow: tab === 'batch' ? '0 1px 3px rgba(0,0,0,0.06)' : 'none'
+                        backdropFilter: tab === 'batch' ? 'blur(8px)' : 'none',
+                        WebkitBackdropFilter: tab === 'batch' ? 'blur(8px)' : 'none',
+                        boxShadow: tab === 'batch' ? '0 2px 8px rgba(0,0,0,0.08)' : 'none'
                     }}
                 >
                     Batch / CSV Import
@@ -262,8 +271,8 @@ High Threshold Warning,Pantry,SKU-HIGHTHRESH-01,10,2000,2500,Supplier,999`;
             )}
 
             {tab === 'single' ? (
-                /* ─── Compact Vivid Single Product Form (Minimizes scrolling) ─── */
-                <div className="card" style={{ padding: '12px 14px', borderRadius: '14px', background: '#FFFFFF', border: '1px solid #EDF2F7', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                /* ─── Compact Vivid Single Product Form (Glassmorphism Card) ─── */
+                <div className="card glass-effect" style={{ padding: '14px 16px', borderRadius: '16px' }}>
                     {/* Row 1: Product Title */}
                     <div style={{ marginBottom: '8px' }}>
                         <label className="label" style={{ fontSize: '11.5px', marginBottom: '3px' }}>Product Name *</label>
@@ -402,6 +411,41 @@ High Threshold Warning,Pantry,SKU-HIGHTHRESH-01,10,2000,2500,Supplier,999`;
                         </div>
                     </div>
 
+                    {/* Row 5: Vendor / Owner & Supplier */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
+                        <div>
+                            <label className="label" style={{ fontSize: '11.5px', marginBottom: '3px' }}>Vendor / Owner *</label>
+                            <input
+                                type="text"
+                                list="existing-owners-list"
+                                className="search-input"
+                                style={{ width: '100%', height: '38px', fontSize: '12.5px', padding: '6px 8px' }}
+                                value={owner}
+                                onChange={e => setOwner(e.target.value)}
+                                placeholder="In-House (Royalvazier) or Reseller"
+                                required
+                            />
+                            <datalist id="existing-owners-list">
+                                <option value="In-House (Royalvazier)" />
+                                <option value="Third-Party Reseller" />
+                                {Array.from(new Set(Store.getProducts().map(p => p.owner || p.vendor).filter(Boolean))).map(own => (
+                                    <option key={own} value={own} />
+                                ))}
+                            </datalist>
+                        </div>
+                        <div>
+                            <label className="label" style={{ fontSize: '11.5px', marginBottom: '3px' }}>Supplier / Source</label>
+                            <input
+                                type="text"
+                                className="search-input"
+                                style={{ width: '100%', height: '38px', fontSize: '12.5px', padding: '6px 8px' }}
+                                value={supplier}
+                                onChange={e => setSupplier(e.target.value)}
+                                placeholder="Direct Wholesaler"
+                            />
+                        </div>
+                    </div>
+
                     {/* Single Unified Action Buttons Row */}
                     <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '8px' }}>
                         <button
@@ -426,7 +470,7 @@ High Threshold Warning,Pantry,SKU-HIGHTHRESH-01,10,2000,2500,Supplier,999`;
                 /* ─── Batch CSV Import with Dry Run Preview & Validation ─── */
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                     {!importPreview ? (
-                        <div className="card" style={{ padding: '22px 18px', borderRadius: '18px', background: '#FFFFFF', border: '1px solid #EDF2F7', textAlign: 'center' }}>
+                        <div className="card glass-effect" style={{ padding: '24px 18px', borderRadius: '18px', textAlign: 'center' }}>
                             <div style={{ width: '52px', height: '52px', borderRadius: '14px', background: '#FFF2EB', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
                                 <FileUp size={26} color="#F95721" />
                             </div>

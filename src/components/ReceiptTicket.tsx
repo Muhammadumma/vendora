@@ -39,14 +39,14 @@ export const ReceiptTicket: React.FC<ReceiptTicketProps> = ({
     });
 
     const isDebt = String(sale.paymentMethod || '').toLowerCase().includes('debt') && !isSettlement;
-    const formattedDueDate = sale.dueDate 
+    const formattedDueDate = sale.dueDate
         ? new Date(sale.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
         : 'In 7 days';
 
-    const displayTitle = title || (isSettlement 
-        ? 'Debt Settlement Confirmed!' 
-        : isDebt 
-            ? 'Credit Sale Issued' 
+    const displayTitle = title || (isSettlement
+        ? 'Debt Settlement Confirmed!'
+        : isDebt
+            ? 'Credit Sale Issued'
             : 'Your order is confirmed!');
 
     const displaySubtitle = isSettlement
@@ -76,11 +76,11 @@ export const ReceiptTicket: React.FC<ReceiptTicketProps> = ({
             </div>
 
             {/* Main Receipt Body */}
-            <div 
-                className="ticket-paper-content" 
-                style={{ 
-                    background: '#FFFFFF', 
-                    padding: '16px 20px 18px', 
+            <div
+                className="ticket-paper-content"
+                style={{
+                    background: '#FFFFFF',
+                    padding: '16px 20px 18px',
                     fontFamily: "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif",
                     color: '#0F172A',
                     borderLeft: '1px solid #E2E8F0',
@@ -127,37 +127,53 @@ export const ReceiptTicket: React.FC<ReceiptTicketProps> = ({
                     </div>
                 </div>
 
-                {/* Customer Information Strip */}
-                <div style={{ background: '#F8FAFC', borderRadius: '10px', padding: '8px 12px', marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11.5px', border: '1px solid #F1F5F9' }}>
-                    <div>
-                        <span style={{ color: '#64748B', fontWeight: 600 }}>{isDebt ? 'Debtor: ' : 'Billed to: '}</span>
-                        <strong style={{ color: '#0F172A' }}>{sale.customerName || 'Walk-in Customer'}</strong>
+                {/* Buyer / Customer Information Strip */}
+                <div style={{ background: '#F8FAFC', borderRadius: '12px', padding: '10px 14px', marginBottom: '14px', fontSize: '11.5px', border: '1px solid #E2E8F0' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', borderBottom: '1px solid #EDF2F7', paddingBottom: '4px' }}>
+                        <span style={{ fontSize: '10px', fontWeight: 800, color: '#475569', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                            BUYER DETAILS
+                        </span>
+                        <span
+                            style={{
+                                padding: '2px 7px',
+                                borderRadius: '5px',
+                                background: isDebt ? '#FEF3C7' : '#DCFCE7',
+                                color: isDebt ? '#B45309' : '#15803D',
+                                fontSize: '9.5px',
+                                fontWeight: 800,
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.03em',
+                                border: isDebt ? '1px solid #FDE68A' : '1px solid #BBF7D0'
+                            }}
+                        >
+                            {isDebt ? 'UNPAID CREDIT' : isSettlement ? 'SETTLED' : String(sale.paymentMethod || 'Cash').toUpperCase()}
+                        </span>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                            <span style={{ color: '#64748B', fontWeight: 600, width: '65px', flexShrink: 0 }}>Buyer:</span>
+                            <strong style={{ color: '#0F172A' }}>{sale.customerName || 'Walk-in Customer'}</strong>
+                        </div>
                         {sale.customerPhone && (
-                            <div style={{ fontSize: '10.5px', color: '#64748B', marginTop: '1px' }}>
-                                Tel: {sale.customerPhone}
+                            <div style={{ display: 'flex', gap: '6px' }}>
+                                <span style={{ color: '#64748B', fontWeight: 600, width: '65px', flexShrink: 0 }}>Phone:</span>
+                                <span style={{ color: '#0F172A', fontWeight: 600 }}>{sale.customerPhone}</span>
+                            </div>
+                        )}
+                        {sale.customerAddress && (
+                            <div style={{ display: 'flex', gap: '6px' }}>
+                                <span style={{ color: '#64748B', fontWeight: 600, width: '65px', flexShrink: 0 }}>Address:</span>
+                                <span style={{ color: '#0F172A', fontWeight: 600 }}>{sale.customerAddress}</span>
                             </div>
                         )}
                         {isDebt && (
-                            <div style={{ fontSize: '10px', color: '#B45309', fontWeight: 700, marginTop: '2px' }}>
-                                Due Date: {formattedDueDate}
+                            <div style={{ display: 'flex', gap: '6px', marginTop: '2px' }}>
+                                <span style={{ color: '#B45309', fontWeight: 700, width: '65px', flexShrink: 0 }}>Due Date:</span>
+                                <span style={{ color: '#B45309', fontWeight: 700 }}>{formattedDueDate}</span>
                             </div>
                         )}
                     </div>
-                    <span 
-                        style={{ 
-                            padding: '4px 8px', 
-                            borderRadius: '6px', 
-                            background: isDebt ? '#FEF3C7' : '#DCFCE7', 
-                            color: isDebt ? '#B45309' : '#15803D', 
-                            fontSize: '10px', 
-                            fontWeight: 800, 
-                            textTransform: 'uppercase', 
-                            letterSpacing: '0.04em',
-                            border: isDebt ? '1px solid #FDE68A' : '1px solid #BBF7D0'
-                        }}
-                    >
-                        {isDebt ? 'UNPAID CREDIT' : isSettlement ? 'SETTLED' : String(sale.paymentMethod || 'Cash').toUpperCase()}
-                    </span>
                 </div>
 
                 {/* Section Title */}
@@ -178,13 +194,13 @@ export const ReceiptTicket: React.FC<ReceiptTicketProps> = ({
                         sale.items.map((it, idx) => {
                             const lineTotal = (Number(it.price) || 0) * (Number(it.qty) || 1);
                             return (
-                                <div 
-                                    key={idx} 
-                                    style={{ 
-                                        display: 'grid', 
-                                        gridTemplateColumns: '1fr 50px 85px', 
-                                        gap: '8px', 
-                                        padding: '7px 0', 
+                                <div
+                                    key={idx}
+                                    style={{
+                                        display: 'grid',
+                                        gridTemplateColumns: '1fr 50px 85px',
+                                        gap: '8px',
+                                        padding: '7px 0',
                                         alignItems: 'center',
                                         borderBottom: idx === sale.items.length - 1 ? 'none' : '1px dashed #F1F5F9'
                                     }}
@@ -218,18 +234,12 @@ export const ReceiptTicket: React.FC<ReceiptTicketProps> = ({
                     )}
                 </div>
 
-                {/* Subtotals & Taxes */}
+                {/* Subtotals & Discounts (VAT tracked internally) */}
                 <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: '10px', marginTop: '6px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', color: '#64748B', marginBottom: '4px' }}>
                         <span>Subtotal</span>
                         <span style={{ fontWeight: 600, color: '#0F172A' }}>₦{subtotal.toLocaleString()}</span>
                     </div>
-                    {vat > 0 && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', color: '#64748B', marginBottom: '4px' }}>
-                            <span>VAT (7.5%)</span>
-                            <span style={{ fontWeight: 600, color: '#0F172A' }}>₦{vat.toLocaleString()}</span>
-                        </div>
-                    )}
                     {discount > 0 && (
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', color: '#DC2626', marginBottom: '4px' }}>
                             <span>Discount</span>
@@ -250,7 +260,7 @@ export const ReceiptTicket: React.FC<ReceiptTicketProps> = ({
 
                 {/* Barcode & Store Details */}
                 <div style={{ marginTop: '18px', paddingTop: '14px', borderTop: '1px solid #F1F5F9', textAlign: 'center' }}>
-                    <div 
+                    <div
                         style={{ display: 'flex', justifyContent: 'center', overflow: 'hidden' }}
                         dangerouslySetInnerHTML={{ __html: barcodeSvg }}
                     />

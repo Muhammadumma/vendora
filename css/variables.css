@@ -22,13 +22,17 @@
     --info-color: #0284C7;
     --info-bg: #F0F9FF;
 
-    /* Neutrals */
+    /* Neutrals & Glassmorphism */
     --bg-body: #F8FAFC;
-    --bg-surface: #FFFFFF;
-    --bg-card: #FFFFFF;
+    --bg-surface: rgba(255, 255, 255, 0.85);
+    --bg-card: rgba(255, 255, 255, 0.82);
     --bg-sidebar: #1E293B;
-    --border-color: #E2E8F0;
+    --border-color: rgba(226, 232, 240, 0.8);
     --border-focus: #F95721;
+
+    --glass-bg: rgba(255, 255, 255, 0.80);
+    --glass-border: rgba(255, 255, 255, 0.50);
+    --shadow-glass: 0 8px 32px 0 rgba(15, 23, 42, 0.08);
 
     /* Text */
     --text-main: #0F172A;
@@ -53,58 +57,105 @@
     --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Dark Green Tertiary Theme */
+/* =============================================
+   DARK THEME — OBSIDIAN MIDNIGHT GLASSMORPHISM
+   High-contrast, modern retail POS dark mode
+   ============================================= */
 body.dark-theme {
-    --bg-body: #022C22;
-    /* Deeper Forest Green for depth */
-    --bg-surface: #064E3B;
-    /* Rich Deep Green */
-    --bg-card: rgba(6, 78, 59, 0.7);
-    /* Translucent for glassmorphism */
-    --border-color: rgba(16, 185, 129, 0.2);
-    --border-accent: #10B981;
+    /* Backgrounds — deep obsidian with translucent glass depth */
+    --bg-body: #0B0F17;
+    --bg-surface: rgba(22, 31, 48, 0.68);
+    --bg-card: rgba(22, 31, 48, 0.65);
+    --bg-sidebar: rgba(11, 15, 23, 0.85);
 
-    --text-main: #F0FDF4;
-    --text-secondary: #D1FAE5;
-    --text-muted: #6EE7B7;
-    --text-on-dark: #F0FDF4;
+    /* Borders — crisp translucent slate with subtle glass glow */
+    --border-color: rgba(255, 255, 255, 0.08);
+    --border-focus: #FF6B35;
+    --border-accent: #FF6B35;
 
-    --primary-color: #10B981;
-    --primary-hover: #34D399;
-    --primary-light: rgba(16, 185, 129, 0.1);
+    /* Text — maximum contrast white */
+    --text-main: #F8FAFC;
+    --text-secondary: #CBD5E1;
+    --text-muted: #94A3B8;
+    --text-on-dark: #F8FAFC;
 
-    --accent-glow: 0 0 20px rgba(16, 185, 129, 0.3);
-    --glass-bg: rgba(2, 44, 34, 0.8);
-    --glass-border: rgba(16, 185, 129, 0.1);
+    /* Brand — vibrant retail orange (same as light mode) */
+    --primary-color: #FF6B35;
+    --primary-hover: #E64A19;
+    --primary-light: rgba(255, 107, 53, 0.15);
+    --primary-glow: rgba(255, 107, 53, 0.25);
+
+    /* Functional (keep accessible in dark) */
+    --success-color: #10B981;
+    --success-bg: rgba(16, 185, 129, 0.12);
+    --warning-color: #F59E0B;
+    --warning-bg: rgba(245, 158, 11, 0.12);
+    --danger-color: #EF4444;
+    --danger-bg: rgba(239, 68, 68, 0.12);
+    --info-color: #38BDF8;
+    --info-bg: rgba(56, 189, 248, 0.12);
+
+    /* Shadows & Glass */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.45);
+
+    /* Glass system */
+    --glass-bg: rgba(15, 23, 42, 0.70);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --accent-glow: 0 0 20px rgba(255, 107, 53, 0.25);
 }
 
-/* Glassmorphism utility */
+/* ── Glassmorphism Utility & Card Surfaces ── */
 .glass-effect {
     background: var(--glass-bg);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     border: 1px solid var(--glass-border);
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.35);
+}
+
+.card {
+    background: var(--bg-card);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-md);
+    transition: var(--transition);
 }
 
 .dark-theme .card {
-    background: var(--bg-surface);
-    border: 1px solid var(--border-color);
-    box-shadow: var(--shadow-lg);
+    background: rgba(22, 31, 48, 0.65) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37) !important;
     transition: var(--transition);
 }
 
 .dark-theme .card:hover {
-    border-color: var(--border-accent);
-    box-shadow: var(--accent-glow);
+    border-color: rgba(255, 107, 53, 0.45) !important;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.45), var(--accent-glow) !important;
 }
 
+/* ── Top bar (Glassmorphism) ── */
 .dark-theme .top-bar {
-    background: var(--glass-bg);
-    backdrop-filter: blur(8px);
-    border-color: var(--border-color);
+    background: rgba(11, 15, 23, 0.80) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
 }
 
+/* ── Bottom nav / mobile nav (Glassmorphism) ── */
+.dark-theme .bottom-nav {
+    background: rgba(11, 15, 23, 0.85) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* ── Sidebar nav ── */
 .dark-theme .sidebar-nav .nav-item {
     color: var(--text-secondary);
 }
@@ -115,32 +166,259 @@ body.dark-theme {
     border-right: 3px solid var(--primary-color);
 }
 
+/* ── Table headers ── */
 .dark-theme th {
-    background: rgba(2, 44, 34, 0.9);
+    background: #0E1520;
     color: var(--text-secondary);
     text-transform: uppercase;
     font-size: 11px;
     letter-spacing: 0.05em;
+    border-color: var(--border-color) !important;
+}
+
+.dark-theme td {
+    border-color: var(--border-color) !important;
+    color: var(--text-main) !important;
 }
 
 .dark-theme tr:hover td {
-    background: rgba(16, 185, 129, 0.05);
+    background: rgba(255, 107, 53, 0.04);
 }
 
+/* ── Inputs / selects ── */
 .dark-theme input,
-.dark-theme select {
-    background: rgba(2, 44, 34, 0.5);
-    border: 1px solid var(--border-color);
-    color: var(--text-main);
+.dark-theme select,
+.dark-theme textarea {
+    background: #111827 !important;
+    border: 1px solid #334155 !important;
+    color: #F8FAFC !important;
     transition: var(--transition);
 }
 
-.dark-theme input:focus {
-    border-color: var(--primary-color);
-    background: rgba(2, 44, 34, 0.8);
-    outline: none;
-    box-shadow: 0 0 0 2px var(--primary-light);
+.dark-theme input::placeholder,
+.dark-theme textarea::placeholder {
+    color: #64748B !important;
 }
+
+.dark-theme input:focus,
+.dark-theme select:focus,
+.dark-theme textarea:focus {
+    border-color: var(--primary-color) !important;
+    background: #131C2E !important;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(255, 107, 53, 0.2) !important;
+}
+
+/* ── CRITICAL: Override hardcoded dark text that becomes invisible ── */
+/* These selectors catch all inline style text colors used in light mode */
+.dark-theme [style*="color: #0F172A"],
+.dark-theme [style*="color:#0F172A"] {
+    color: #F8FAFC !important;
+}
+
+.dark-theme [style*="color: #1E293B"],
+.dark-theme [style*="color:#1E293B"] {
+    color: #F8FAFC !important;
+}
+
+.dark-theme [style*="color: #334155"],
+.dark-theme [style*="color:#334155"] {
+    color: #CBD5E1 !important;
+}
+
+.dark-theme [style*="color: #475569"],
+.dark-theme [style*="color:#475569"] {
+    color: #94A3B8 !important;
+}
+
+/* ── Backgrounds that need flipping (preserving glassmorphism) ── */
+.dark-theme [style*="background: #FFFFFF"],
+.dark-theme [style*="background:#FFFFFF"],
+.dark-theme [style*="background-color: #FFFFFF"],
+.dark-theme [style*="background-color:#FFFFFF"] {
+    background: rgba(22, 31, 48, 0.65) !important;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+}
+
+.dark-theme [style*="background: #F8FAFC"],
+.dark-theme [style*="background:#F8FAFC"],
+.dark-theme [style*="background: #F1F5F9"],
+.dark-theme [style*="background:#F1F5F9"] {
+    background: rgba(15, 23, 42, 0.60) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+.dark-theme [style*="background: #F9FAFB"],
+.dark-theme [style*="background:#F9FAFB"] {
+    background: rgba(15, 23, 42, 0.60) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+.dark-theme [style*="background: #EDF2F7"],
+.dark-theme [style*="background:#EDF2F7"] {
+    background: rgba(30, 41, 59, 0.50) !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+/* ── Borders ── */
+.dark-theme [style*="border: 1px solid #E2E8F0"],
+.dark-theme [style*="border:1px solid #E2E8F0"],
+.dark-theme [style*="border-color: #E2E8F0"],
+.dark-theme [style*="border-color:#E2E8F0"] {
+    border-color: #27354A !important;
+}
+
+.dark-theme [style*="border: 1px solid #F1F5F9"],
+.dark-theme [style*="border:1px solid #F1F5F9"] {
+    border-color: #27354A !important;
+}
+
+/* ── Receipt modal and modals remain white (thermal paper) ── */
+.dark-theme .receipt-modal-container,
+.dark-theme .ticket-paper-content,
+.dark-theme .ticket-outer-wrapper {
+    background: #FFFFFF !important;
+    color: #0F172A !important;
+}
+
+.dark-theme .receipt-modal-container [style*="color"],
+.dark-theme .ticket-paper-content [style*="color"] {
+    /* Receipt text intentionally NOT overridden — must stay black for print */
+}
+
+/* ── Auth overlay/modal use dark theme properly ── */
+.dark-theme .auth-overlay {
+    background: radial-gradient(circle, rgba(22, 31, 48, 0.8) 0%, rgba(11, 15, 23, 0.96) 100%) !important;
+}
+
+.dark-theme .auth-card {
+    background: rgba(22, 31, 48, 0.9) !important;
+    border-color: #27354A !important;
+}
+
+/* ── Data table ── */
+.dark-theme .data-table {
+    background: var(--bg-surface);
+}
+
+.dark-theme .data-table th {
+    background: #0E1520;
+}
+
+.dark-theme .data-table tr:hover td {
+    background: rgba(255, 107, 53, 0.04);
+}
+
+/* ── Filter pills ── */
+.dark-theme .filter-pill {
+    background: #161F30 !important;
+    border-color: #27354A !important;
+    color: #CBD5E1 !important;
+}
+
+.dark-theme .filter-pill.active,
+.dark-theme .filter-pill:hover {
+    background: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
+    color: #FFFFFF !important;
+}
+
+/* ── Btn outline in dark ── */
+.dark-theme .btn-outline {
+    background: transparent !important;
+    border-color: #27354A !important;
+    color: var(--text-secondary) !important;
+}
+
+.dark-theme .btn-outline:hover {
+    background: #1E293B !important;
+    border-color: var(--primary-color) !important;
+    color: var(--text-main) !important;
+}
+
+/* ── Receipt modal overlay backdrop ── */
+.dark-theme .receipt-modal-overlay {
+    background: rgba(11, 15, 23, 0.85) !important;
+}
+
+.dark-theme .receipt-modal-header,
+.dark-theme .receipt-modal-footer {
+    background: #161F30 !important;
+    border-color: #27354A !important;
+}
+
+.dark-theme .receipt-modal-header span,
+.dark-theme .receipt-modal-header div {
+    color: #F8FAFC !important;
+}
+
+/* ── Bottom nav in dark ── */
+.dark-theme .bottom-nav-bar {
+    background: rgba(11, 15, 23, 0.96) !important;
+    border-color: #27354A !important;
+}
+
+.dark-theme .nav-tab {
+    color: #64748B !important;
+}
+
+.dark-theme .nav-tab.active {
+    color: #FF6B35 !important;
+}
+
+/* ── Stepper control ── */
+.dark-theme .stepper-control {
+    background: #1E293B !important;
+    border-color: #27354A !important;
+}
+
+.dark-theme .stepper-btn {
+    color: #F8FAFC !important;
+}
+
+.dark-theme .stepper-value {
+    color: #F8FAFC !important;
+}
+
+/* ── Badge overrides ── */
+.dark-theme .badge-neutral {
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: #CBD5E1 !important;
+}
+
+/* ── Scrollbar styling ── */
+.dark-theme ::-webkit-scrollbar-track {
+    background: #0B0F17;
+}
+
+.dark-theme ::-webkit-scrollbar-thumb {
+    background: #27354A;
+    border-radius: 4px;
+}
+
+.dark-theme ::-webkit-scrollbar-thumb:hover {
+    background: #334155;
+}
+
+/* ── AppHeader in dark ── */
+.dark-theme .app-top-header {
+    background: rgba(11, 15, 23, 0.95) !important;
+    border-color: #27354A !important;
+}
+
+.dark-theme .brand-name {
+    color: #F8FAFC !important;
+}
+
+.dark-theme .brand-subtext {
+    color: #64748B !important;
+}
+
+
 
 @keyframes fadeIn {
     from {

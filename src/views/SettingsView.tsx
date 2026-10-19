@@ -404,7 +404,7 @@ export const SettingsView: React.FC = () => {
                                 boxShadow: settings.theme === 'light' ? '0 2px 6px rgba(0,0,0,0.06)' : 'none'
                             }}
                         >
-                            <Sun size={16} /> Light View
+                            <Sun size={16} /> White & Orange (Light)
                         </button>
                         <button
                             type="button"
@@ -425,7 +425,7 @@ export const SettingsView: React.FC = () => {
                                 boxShadow: settings.theme === 'dark' ? '0 2px 6px rgba(0,0,0,0.06)' : 'none'
                             }}
                         >
-                            <Moon size={16} /> Night Mode
+                            <Moon size={16} /> Dark Mode
                         </button>
                     </div>
 

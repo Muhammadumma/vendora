@@ -22,6 +22,8 @@ export interface Product {
     buyPrice: number;
     sellPrice: number;
     supplier?: string;
+    owner?: string;
+    vendor?: string;
     threshold?: number;
     warnings?: string[];
     createdAt?: string;
@@ -40,6 +42,7 @@ export interface Sale {
     date: string;
     customerName?: string;
     customerPhone?: string;
+    customerAddress?: string;
     paymentMethod: string;
     items: SaleItem[];
     subtotal?: number;
@@ -302,7 +305,7 @@ class StoreClass {
             ]
         };
         this.state.activeSession = user;
-        try { sessionStorage.setItem('vendora_active_session', JSON.stringify(user)); } catch (e) {}
+        try { sessionStorage.setItem('vendora_active_session', JSON.stringify(user)); } catch (e) { }
         this.notify();
         return true;
     }
@@ -330,7 +333,7 @@ class StoreClass {
             ]
         };
         this.state.activeSession = user;
-        try { sessionStorage.setItem('vendora_active_session', JSON.stringify(user)); } catch (e) {}
+        try { sessionStorage.setItem('vendora_active_session', JSON.stringify(user)); } catch (e) { }
         this.notify();
         this.initCloudSync(user.uid);
         return user;
@@ -339,7 +342,7 @@ class StoreClass {
     setSecurityQuestions(questions: { question: string; answer: string }[]) {
         if (this.state.activeSession) {
             this.state.activeSession.securityQuestions = questions;
-            try { sessionStorage.setItem('vendora_active_session', JSON.stringify(this.state.activeSession)); } catch (e) {}
+            try { sessionStorage.setItem('vendora_active_session', JSON.stringify(this.state.activeSession)); } catch (e) { }
             this.notify();
             return true;
         }
@@ -349,7 +352,7 @@ class StoreClass {
     updatePassword(newPassword: string) {
         if (this.state.activeSession) {
             this.state.activeSession.password = newPassword;
-            try { sessionStorage.setItem('vendora_active_session', JSON.stringify(this.state.activeSession)); } catch (e) {}
+            try { sessionStorage.setItem('vendora_active_session', JSON.stringify(this.state.activeSession)); } catch (e) { }
             this.notify();
             return true;
         }
@@ -364,7 +367,7 @@ class StoreClass {
     logout() {
         this.stopCloudSync();
         this.state.activeSession = null;
-        try { sessionStorage.removeItem('vendora_active_session'); } catch (e) {}
+        try { sessionStorage.removeItem('vendora_active_session'); } catch (e) { }
         this.clearAllData();
         FirebaseAuthService.logout().catch(e => console.warn(e));
         this.notify();
@@ -383,12 +386,14 @@ class StoreClass {
             buyPrice: Math.max(0, Number.isFinite(Number(product.buyPrice)) ? Number(product.buyPrice) : 0),
             sellPrice: Math.max(0, Number.isFinite(Number(product.sellPrice)) ? Number(product.sellPrice) : 0),
             supplier: (product.supplier || '').trim(),
+            owner: (product.owner || product.vendor || 'In-House (Direct)').trim(),
+            vendor: (product.vendor || product.owner || 'In-House (Direct)').trim(),
             threshold: Math.max(0, Number.isInteger(Number(product.threshold)) ? Number(product.threshold) : 5),
             warnings: Array.isArray(product.warnings) ? product.warnings : [],
             createdAt: product.createdAt || new Date().toISOString()
         };
 
-        const existingIndex = this.state.products.findIndex(p => 
+        const existingIndex = this.state.products.findIndex(p =>
             p.id === newProd.id || (newProd.sku && p.sku && p.sku.toLowerCase() === newProd.sku.toLowerCase())
         );
         if (existingIndex !== -1) {
@@ -425,6 +430,9 @@ class StoreClass {
             if (updates.buyPrice !== undefined) sanitizedUpdates.buyPrice = Math.max(0, Number(updates.buyPrice) || 0);
             if (updates.sellPrice !== undefined) sanitizedUpdates.sellPrice = Math.max(0, Number(updates.sellPrice) || 0);
             if (updates.threshold !== undefined) sanitizedUpdates.threshold = Math.max(0, Number(updates.threshold) || 5);
+            if (updates.owner !== undefined) sanitizedUpdates.owner = String(updates.owner).trim();
+            if (updates.vendor !== undefined) sanitizedUpdates.vendor = String(updates.vendor).trim();
+            if (updates.supplier !== undefined) sanitizedUpdates.supplier = String(updates.supplier).trim();
 
             this.state.products[index] = { ...this.state.products[index], ...sanitizedUpdates };
             this._save('bc_products', this.state.products);
@@ -449,6 +457,7 @@ class StoreClass {
             date: saleData.date || new Date().toISOString(),
             customerName: (saleData.customerName || 'Walk-in Customer').trim(),
             customerPhone: (saleData.customerPhone || '').trim(),
+            customerAddress: (saleData.customerAddress || '').trim(),
             paymentMethod: saleData.paymentMethod || 'Cash',
             items: saleData.items,
             subtotal: saleData.subtotal ?? saleData.total,
@@ -508,6 +517,19 @@ class StoreClass {
         FirebaseSync.syncSale(sale).catch(e => console.warn("Firestore sale sync:", e));
         this.queueAutoSync();
         return sale;
+    }
+
+    updateSale(id: string, updates: Partial<Sale>) {
+        const idx = this.state.sales.findIndex(s => s.id === id);
+        if (idx !== -1) {
+            this.state.sales[idx] = { ...this.state.sales[idx], ...updates };
+            this._save('bc_sales', this.state.sales);
+            this.notify();
+            FirebaseSync.syncSale(this.state.sales[idx]).catch(e => console.warn("Firestore sale update sync:", e));
+            this.queueAutoSync();
+            return this.state.sales[idx];
+        }
+        return null;
     }
 
     // Purchases
@@ -598,8 +620,8 @@ class StoreClass {
             debt.settledDate = new Date().toISOString();
 
             // Check if there was an existing source sale recorded when credit was issued
-            const existingSaleIndex = debt.sourceSaleId 
-                ? this.state.sales.findIndex(s => s.id === debt.sourceSaleId) 
+            const existingSaleIndex = debt.sourceSaleId
+                ? this.state.sales.findIndex(s => s.id === debt.sourceSaleId)
                 : -1;
 
             let settlementSale: Sale;
@@ -721,7 +743,7 @@ class StoreClass {
     }
 
     // Messages & Reminders
-    recordMessage(msg: { text: string; recipient?: string; type?: string; [key: string]: any }) {
+    recordMessage(msg: { text: string; recipient?: string; type?: string;[key: string]: any }) {
         const message = {
             id: 'MSG-' + Date.now(),
             ...msg,

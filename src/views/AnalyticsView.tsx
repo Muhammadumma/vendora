@@ -32,6 +32,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigate }) => {
     const totalRevenue = sales.reduce((sum, s) => sum + (Number(s.total) || 0), 0);
     const inventoryValuation = Store.getTotalStockValue();
     const ordersCount = sales.length;
+    const totalProfit = sales.reduce((sum, s) => sum + (Number(s.profit) || Store.calculateSalePL(s)), 0);
+    const internalVatProvision = Math.round(Math.max(0, totalProfit) * 0.075);
+    const netRetainedEarnings = totalProfit - internalVatProvision;
 
     const quickPrompts = [
         { icon: TrendingUp, text: "What is our top revenue and margin driver?" },
@@ -197,6 +200,41 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigate }) => {
                             {ordersCount} {ordersCount === 1 ? 'order' : 'orders'}
                         </div>
                         <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>Total Completed</div>
+                    </div>
+                </div>
+
+                {/* Internal Profit & VAT Provision (Owner Private Diagnostics) */}
+                <div className="card" style={{ padding: '16px', borderRadius: '16px', background: '#FFFFFF', border: '1px solid #EDF2F7', marginTop: '10px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <div style={{ fontSize: '11px', fontWeight: 800, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                            INTERNAL PROFIT & TAX PROVISION (PRIVATE)
+                        </div>
+                        <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '6px', background: '#DCFCE7', color: '#15803D' }}>
+                            7.5% Internal VAT on Profit
+                        </span>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', textAlign: 'center' }}>
+                        <div style={{ padding: '10px 8px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #F1F5F9' }}>
+                            <div style={{ fontSize: '10px', color: '#64748B', fontWeight: 700 }}>GROSS PROFIT</div>
+                            <div style={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', marginTop: '2px' }}>
+                                ₦{totalProfit.toLocaleString()}
+                            </div>
+                        </div>
+
+                        <div style={{ padding: '10px 8px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #F1F5F9' }}>
+                            <div style={{ fontSize: '10px', color: '#64748B', fontWeight: 700 }}>INTERNAL VAT (7.5%)</div>
+                            <div style={{ fontSize: '15px', fontWeight: 800, color: '#F95721', marginTop: '2px' }}>
+                                ₦{internalVatProvision.toLocaleString()}
+                            </div>
+                        </div>
+
+                        <div style={{ padding: '10px 8px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #F1F5F9' }}>
+                            <div style={{ fontSize: '10px', color: '#64748B', fontWeight: 700 }}>NET RETAINED</div>
+                            <div style={{ fontSize: '15px', fontWeight: 800, color: '#059669', marginTop: '2px' }}>
+                                ₦{netRetainedEarnings.toLocaleString()}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

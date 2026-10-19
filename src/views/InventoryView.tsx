@@ -20,6 +20,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate }) => {
     const [products, setProducts] = useState<Product[]>(Store.getProducts());
     const [search, setSearch] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('All');
+    const [sourceFilter, setSourceFilter] = useState<'All' | 'In-House' | 'Third-Party'>('All');
 
     // Modals
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -59,6 +60,8 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate }) => {
         const matchesQuery = p.name.toLowerCase().includes(query) ||
             (p.category || '').toLowerCase().includes(query) ||
             (p.sku || '').toLowerCase().includes(query) ||
+            (p.owner || '').toLowerCase().includes(query) ||
+            (p.vendor || '').toLowerCase().includes(query) ||
             p.id.toLowerCase().includes(query);
 
         let matchesCat = true;
@@ -67,12 +70,22 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate }) => {
         } else if (selectedCategory !== 'All') {
             matchesCat = simplifyCategory(p.category) === selectedCategory;
         }
-        return matchesQuery && matchesCat;
+
+        let matchesSource = true;
+        const ownerVal = (p.owner || p.vendor || '').toLowerCase();
+        const isInHouse = !ownerVal || ownerVal.includes('in-house') || ownerVal.includes('royalvazier') || ownerVal.includes('direct');
+        if (sourceFilter === 'In-House') {
+            matchesSource = isInHouse;
+        } else if (sourceFilter === 'Third-Party') {
+            matchesSource = !isInHouse;
+        }
+
+        return matchesQuery && matchesCat && matchesSource;
     });
 
     const handleExportCSV = () => {
         const rows = [
-            ['Product Title', 'Category', 'SKU / Barcode ID', 'Stock Quantity', 'Unit Cost (₦)', 'Selling Price (₦)', 'Margin (%)', 'Assigned Supplier', 'Low Stock Alert Threshold'],
+            ['Product Title', 'Category', 'SKU / Barcode ID', 'Stock Quantity', 'Unit Cost (₦)', 'Selling Price (₦)', 'Margin (%)', 'Vendor / Owner', 'Assigned Supplier', 'Low Stock Alert Threshold'],
             ...products.map(p => {
                 const margin = computeMargin(p.buyPrice, p.sellPrice);
                 const marginStr = margin !== null ? `${(margin * 100).toFixed(1)}%` : '—';
@@ -84,6 +97,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate }) => {
                     p.buyPrice,
                     p.sellPrice,
                     marginStr,
+                    p.owner || p.vendor || 'In-House (Direct)',
                     p.supplier || 'Direct Wholesaler',
                     p.threshold ?? 5
                 ];
@@ -103,7 +117,9 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate }) => {
             buyPrice: Number(editingProduct.buyPrice),
             sellPrice: Number(editingProduct.sellPrice),
             threshold: Number(editingProduct.threshold) || 5,
-            supplier: editingProduct.supplier || ''
+            supplier: editingProduct.supplier || '',
+            owner: editingProduct.owner || editingProduct.vendor || 'In-House (Direct)',
+            vendor: editingProduct.vendor || editingProduct.owner || 'In-House (Direct)'
         });
         setEditingProduct(null);
         setToastMessage(`Updated ${editingProduct.name}`);
@@ -196,6 +212,30 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate }) => {
                 <Search size={16} color="#64748B" style={{ position: 'absolute', left: '12px', top: '13px' }} />
             </div>
 
+            {/* Vendor Source Toggle Tabs */}
+            <div style={{ display: 'flex', background: '#F1F5F9', padding: '3px', borderRadius: '10px', marginBottom: '10px', width: 'fit-content' }}>
+                {(['All', 'In-House', 'Third-Party'] as const).map(src => (
+                    <button
+                        key={src}
+                        type="button"
+                        onClick={() => setSourceFilter(src)}
+                        style={{
+                            padding: '5px 12px',
+                            borderRadius: '8px',
+                            border: 'none',
+                            fontSize: '11.5px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            background: sourceFilter === src ? '#0F172A' : 'transparent',
+                            color: sourceFilter === src ? '#FFFFFF' : '#64748B',
+                            transition: 'all 0.15s ease'
+                        }}
+                    >
+                        {src === 'All' ? 'All Inventory' : src === 'In-House' ? 'In-House' : 'Reseller / 3rd Party'}
+                    </button>
+                ))}
+            </div>
+
             {/* Filter Pills — Small, concise labels without counts */}
             <div className="filter-pills-row" style={{ marginBottom: '14px', display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '4px' }}>
                 {filterOptions.map(cat => (
@@ -271,18 +311,32 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate }) => {
                                         </div>
                                     </div>
 
-                                    {/* Top Right: Small badge with stock number (e.g., '16 Left' or 'Out') */}
-                                    <span style={{
-                                        padding: '2px 8px',
-                                        borderRadius: '6px',
-                                        fontSize: '11px',
-                                        fontWeight: 800,
-                                        flexShrink: 0,
-                                        background: isOut ? '#FEF2F2' : isLow ? '#FEF2F2' : '#F1F5F9',
-                                        color: isOut ? '#DC2626' : isLow ? '#DC2626' : '#334155'
-                                    }}>
-                                        {isOut ? 'Out' : `${qty} Left`}
-                                    </span>
+                                    {/* Top Right: Badges for Vendor / Owner and Stock number */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                                        {prod.owner && !prod.owner.toLowerCase().includes('in-house') && (
+                                            <span style={{
+                                                padding: '2px 7px',
+                                                borderRadius: '6px',
+                                                fontSize: '10px',
+                                                fontWeight: 700,
+                                                background: 'rgba(249, 87, 33, 0.12)',
+                                                color: '#F95721'
+                                            }}>
+                                                {prod.owner}
+                                            </span>
+                                        )}
+                                        <span style={{
+                                            padding: '2px 8px',
+                                            borderRadius: '6px',
+                                            fontSize: '11px',
+                                            fontWeight: 800,
+                                            flexShrink: 0,
+                                            background: isOut ? '#FEF2F2' : isLow ? '#FEF2F2' : '#F1F5F9',
+                                            color: isOut ? '#DC2626' : isLow ? '#DC2626' : '#334155'
+                                        }}>
+                                            {isOut ? 'Out' : `${qty} Left`}
+                                        </span>
+                                    </div>
                                 </div>
 
                                 {/* Price / Cost / Margin Row — NO text labels */}
@@ -407,7 +461,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate }) => {
                                 />
                             </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '16px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
                                 <input
                                     type="number"
                                     placeholder="Stock Qty"
@@ -424,6 +478,17 @@ export const InventoryView: React.FC<InventoryViewProps> = ({ onNavigate }) => {
                                     style={{ width: '100%', height: '40px' }}
                                     value={editingProduct.category}
                                     onChange={e => setEditingProduct({ ...editingProduct, category: e.target.value })}
+                                />
+                            </div>
+
+                            <div style={{ marginBottom: '16px' }}>
+                                <input
+                                    type="text"
+                                    placeholder="Vendor / Owner (e.g. In-House or Reseller Name)"
+                                    className="search-input"
+                                    style={{ width: '100%', height: '40px' }}
+                                    value={editingProduct.owner || ''}
+                                    onChange={e => setEditingProduct({ ...editingProduct, owner: e.target.value, vendor: e.target.value })}
                                 />
                             </div>
 

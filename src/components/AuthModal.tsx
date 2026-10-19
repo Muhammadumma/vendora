@@ -179,13 +179,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({ user, onLoginSuccess }) =>
     if (isSecuritySetupNeeded) {
         return (
             <div className="auth-overlay">
-                <div className="auth-card fade-in">
+                <div className="auth-card fade-in" style={{
+                    maxWidth: '440px',
+                    width: '92vw',
+                    borderRadius: '24px',
+                    background: '#FFFFFF',
+                    border: '1.5px solid #FED7AA',
+                    boxShadow: '0 25px 60px -15px rgba(249, 87, 33, 0.15), 0 10px 25px -5px rgba(0,0,0,0.05)'
+                }}>
                     <div className="auth-header">
                         <div className="auth-icon-container" style={{ background: 'var(--primary-color)' }}>
                             <ShieldAlert size={28} color="#FFFFFF" />
                         </div>
-                        <h2 className="auth-title">Secure Your Account</h2>
-                        <p className="auth-subtitle">Configure security questions to protect your store profile.</p>
+                        <h2 className="auth-title" style={{ color: '#0F172A', fontWeight: 800 }}>Secure Your Account</h2>
+                        <p className="auth-subtitle" style={{ color: '#64748B' }}>Configure security questions to protect your store profile.</p>
                     </div>
 
                     {errorMsg && (
@@ -261,25 +268,29 @@ export const AuthModal: React.FC<AuthModalProps> = ({ user, onLoginSuccess }) =>
 
     // View: Main Login / Register / Password Reset
     return (
-        <div className="auth-overlay" style={{
-            background: 'rgba(15, 23, 42, 0.92)',
-            backdropFilter: 'blur(12px)'
-        }}>
-            <div className="auth-card fade-in" style={{ maxWidth: '420px', width: '92vw', borderRadius: '20px', boxShadow: '0 24px 60px rgba(0,0,0,0.35)' }}>
-                <div className="auth-header" style={{ marginBottom: '20px' }}>
+        <div className="auth-overlay">
+            <div className="auth-card fade-in" style={{
+                maxWidth: '430px',
+                width: '92vw',
+                borderRadius: '24px',
+                background: '#FFFFFF',
+                border: '1.5px solid #FED7AA',
+                boxShadow: '0 25px 60px -15px rgba(249, 87, 33, 0.15), 0 10px 25px -5px rgba(0,0,0,0.05)'
+            }}>
+                <div className="auth-header" style={{ marginBottom: '22px' }}>
                     <div
                         style={{
-                            width: '52px',
-                            height: '52px',
-                            borderRadius: '14px',
+                            width: '56px',
+                            height: '56px',
+                            borderRadius: '16px',
                             overflow: 'hidden',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             margin: '0 auto 12px auto',
                             background: '#FFFFFF',
-                            boxShadow: '0 4px 14px rgba(0,0,0,0.12)',
-                            border: '1px solid #E2E8F0'
+                            boxShadow: '0 4px 16px rgba(249, 87, 33, 0.15)',
+                            border: '1.5px solid #FED7AA'
                         }}
                     >
                         <img
@@ -291,8 +302,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ user, onLoginSuccess }) =>
                             }}
                         />
                     </div>
-                    <h2 className="auth-title" style={{ fontSize: '22px', fontWeight: 800, color: '#0F172A' }}>Royalvazier</h2>
-                    <p className="auth-subtitle" style={{ fontSize: '13px', color: '#64748B', marginTop: '4px' }}>
+                    <h2 className="auth-title" style={{ fontSize: '24px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em', margin: 0 }}>
+                        Royal<span style={{ color: 'var(--primary-color)' }}>vazier</span>
+                    </h2>
+                    <p className="auth-subtitle" style={{ fontSize: '13px', color: '#64748B', marginTop: '6px' }}>
                         {mode === 'login' && 'Sign in to manage your business'}
                         {mode === 'register' && 'Create your administrator account'}
                         {mode === 'forgot-password' && 'Enter your email to reset your password'}
@@ -355,7 +368,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ user, onLoginSuccess }) =>
                 <form onSubmit={handleSubmit} className="auth-form" style={{ gap: '14px', marginBottom: '16px' }}>
                     {mode === 'register' && (
                         <div className="auth-input-wrapper">
-                            <User className="auth-input-icon" size={18} />
+                            <User className="auth-input-icon" size={18} style={{ color: 'var(--primary-color)' }} />
                             <input
                                 type="text"
                                 placeholder="Full Name / Display Name"
@@ -368,7 +381,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ user, onLoginSuccess }) =>
                     )}
 
                     <div className="auth-input-wrapper">
-                        <Mail className="auth-input-icon" size={18} />
+                        <Mail className="auth-input-icon" size={18} style={{ color: 'var(--primary-color)' }} />
                         <input
                             type="text"
                             placeholder="Email Address or Username"
@@ -382,7 +395,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ user, onLoginSuccess }) =>
 
                     {mode !== 'forgot-password' && (
                         <div className="auth-input-wrapper">
-                            <Lock className="auth-input-icon" size={18} />
+                            <Lock className="auth-input-icon" size={18} style={{ color: 'var(--primary-color)' }} />
                             <input
                                 type={showPassword ? 'text' : 'password'}
                                 placeholder="Password"
@@ -403,14 +416,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ user, onLoginSuccess }) =>
                                     transform: 'translateY(-50%)',
                                     background: 'none',
                                     border: 'none',
-                                    color: 'var(--text-muted)',
+                                    color: 'var(--primary-color)',
                                     cursor: 'pointer',
                                     display: 'flex',
                                     alignItems: 'center',
                                     padding: '4px'
                                 }}
                             >
-                                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                {showPassword ? <EyeOff size={16} color="var(--primary-color)" /> : <Eye size={16} color="var(--primary-color)" />}
                             </button>
                         </div>
                     )}
@@ -451,7 +464,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ user, onLoginSuccess }) =>
                                     fontSize: '12px',
                                     color: 'var(--primary-color)',
                                     cursor: 'pointer',
-                                    fontWeight: 500
+                                    fontWeight: 600
                                 }}
                             >
                                 Forgot password?
@@ -463,7 +476,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({ user, onLoginSuccess }) =>
                         type="submit"
                         className="btn btn-primary auth-submit-btn"
                         disabled={loading}
-                        style={{ height: '48px', marginBottom: '0' }}
+                        style={{
+                            height: '50px',
+                            marginBottom: '0',
+                            background: 'linear-gradient(135deg, #F95721 0%, #EA580C 100%)',
+                            color: '#FFFFFF',
+                            fontWeight: 700,
+                            fontSize: '15px',
+                            borderRadius: '14px',
+                            border: 'none',
+                            boxShadow: '0 4px 14px rgba(249, 87, 33, 0.38)'
+                        }}
                     >
                         {loading
                             ? 'Authenticating...'
@@ -487,9 +510,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ user, onLoginSuccess }) =>
                                 setSuccessMsg('');
                             }}
                             className="auth-toggle-link"
-                            style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748B', fontSize: '13px' }}
                         >
-                            Don't have an account? <span style={{ textDecoration: 'underline' }}>Create one</span>
+                            Don't have an account? <span style={{ color: 'var(--primary-color)', fontWeight: 700, textDecoration: 'underline' }}>Create one</span>
                         </button>
                     )}
 
@@ -502,9 +525,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ user, onLoginSuccess }) =>
                                 setSuccessMsg('');
                             }}
                             className="auth-toggle-link"
-                            style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748B', fontSize: '13px' }}
                         >
-                            Already registered? <span style={{ textDecoration: 'underline' }}>Sign in here</span>
+                            Already registered? <span style={{ color: 'var(--primary-color)', fontWeight: 700, textDecoration: 'underline' }}>Sign in here</span>
                         </button>
                     )}
 
@@ -517,13 +540,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ user, onLoginSuccess }) =>
                                 setSuccessMsg('');
                             }}
                             className="auth-toggle-link"
-                            style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748B', fontSize: '13px' }}
                         >
-                            Back to <span style={{ textDecoration: 'underline' }}>Sign In</span>
+                            Back to <span style={{ color: 'var(--primary-color)', fontWeight: 700, textDecoration: 'underline' }}>Sign In</span>
                         </button>
                     )}
 
-                    <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid #F1F5F9', textAlign: 'center' }}>
+                    <div style={{ marginTop: '18px', paddingTop: '14px', borderTop: '1px solid #FED7AA', textAlign: 'center' }}>
                         <button
                             type="button"
                             onClick={() => {
@@ -535,19 +558,32 @@ export const AuthModal: React.FC<AuthModalProps> = ({ user, onLoginSuccess }) =>
                                 }
                             }}
                             style={{
-                                background: 'none',
-                                border: 'none',
-                                color: '#64748B',
-                                fontSize: '12px',
-                                fontWeight: 600,
+                                background: '#FFF7ED',
+                                border: '1.5px solid #FED7AA',
+                                borderRadius: '12px',
+                                color: '#C2410C',
+                                fontSize: '12.5px',
+                                fontWeight: 700,
                                 cursor: 'pointer',
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                gap: '5px'
+                                justifyContent: 'center',
+                                gap: '6px',
+                                padding: '10px 18px',
+                                width: '100%',
+                                transition: 'all 0.15s ease'
+                            }}
+                            onMouseOver={(e) => {
+                                e.currentTarget.style.background = '#FFEDD5';
+                                e.currentTarget.style.borderColor = '#F95721';
+                            }}
+                            onMouseOut={(e) => {
+                                e.currentTarget.style.background = '#FFF7ED';
+                                e.currentTarget.style.borderColor = '#FED7AA';
                             }}
                             title="Access store locally without internet connection"
                         >
-                            <ShieldAlert size={14} color="#64748B" />
+                            <ShieldAlert size={15} color="#F95721" />
                             <span>Work in Offline / Standalone Mode</span>
                         </button>
                     </div>

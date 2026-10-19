@@ -103,7 +103,7 @@
 .nav-item.active {
     background: var(--primary-color);
     color: white;
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    box-shadow: 0 4px 12px rgba(249, 87, 33, 0.4);
 }
 
 .nav-item .icon {
@@ -274,8 +274,9 @@
 
 /* ─── Login Overlay ──────────────────────────────────────────── */
 #login-overlay {
-    background: rgba(17, 24, 39, 0.95) !important;
-    backdrop-filter: blur(8px);
+    background: radial-gradient(circle at 50% 30%, rgba(254, 215, 170, 0.45) 0%, rgba(255, 255, 255, 0.95) 80%), #FFF7ED !important;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     transition: opacity 0.3s ease;
 }
 
