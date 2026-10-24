@@ -642,19 +642,14 @@ export const ExportService = {
         doc.setTextColor(15, 23, 42);
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(6.5);
-        doc.text('RECEIPT NO:', 6, 26);
+        doc.text('DATE / TIME:', 6, 27);
         doc.setFont('helvetica', 'normal');
-        doc.text(sale.id, 28, 26);
+        doc.text(`${dateFormatted} ${timeFormatted}`, 28, 27);
 
         doc.setFont('helvetica', 'bold');
-        doc.text('DATE / TIME:', 6, 31);
+        doc.text('BILLED TO:', 6, 33);
         doc.setFont('helvetica', 'normal');
-        doc.text(`${dateFormatted} ${timeFormatted}`, 28, 31);
-
-        doc.setFont('helvetica', 'bold');
-        doc.text('BILLED TO:', 6, 36);
-        doc.setFont('helvetica', 'normal');
-        doc.text(sale.customerName || 'Walk-in Customer', 28, 36);
+        doc.text(sale.customerName || 'Walk-in Customer', 28, 33);
 
         // Table
         const itemRows = (sale.items || []).map(it => [
@@ -664,7 +659,7 @@ export const ExportService = {
         ]);
 
         autoTable(doc, {
-            startY: 40,
+            startY: 37,
             head: [['ITEM', 'QTY', 'AMOUNT']],
             body: itemRows,
             theme: 'plain',

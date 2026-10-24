@@ -27,6 +27,7 @@ import {
     FileText,
     History,
     Receipt,
+    Trash2,
     Image as ImageIcon
 } from 'lucide-react';
 import { Store, Product, SaleItem, Sale } from '../core/store';
@@ -67,23 +68,64 @@ export const SellView: React.FC = () => {
     const [debtorNotes, setDebtorNotes] = useState('');
     const [debtorError, setDebtorError] = useState('');
 
-    // External / Non-Inventory Receipt Modal state
+    interface ExtReceiptItem {
+        id: string;
+        name: string;
+        category: string;
+        qty: number;
+        price: string;
+        costPrice: string;
+        paidTo: string;
+    }
+
+    const resolveCategoryFromDb = (inputCat: string): string => {
+        const trimmed = (inputCat || '').trim();
+        if (!trimmed) return 'General';
+        const dbProducts = Store.getProducts();
+        const existingCats = Array.from(new Set(dbProducts.map(p => p.category?.trim()).filter(Boolean)));
+        const matched = existingCats.find(c => c.toLowerCase() === trimmed.toLowerCase());
+        return matched || trimmed;
+    };
+
+    const createEmptyExtItem = (): ExtReceiptItem => ({
+        id: `ext-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+        name: '',
+        category: '',
+        qty: 1,
+        price: '',
+        costPrice: '',
+        paidTo: ''
+    });
+
+    // External / Non-Inventory Receipt Modal state (Multiple Adjustable Products)
     const [showExtReceiptModal, setShowExtReceiptModal] = useState(false);
     const [extBuyerName, setExtBuyerName] = useState('');
     const [extBuyerPhone, setExtBuyerPhone] = useState('');
     const [extBuyerAddress, setExtBuyerAddress] = useState('');
-    const [extItemName, setExtItemName] = useState('');
-    const [extItemQty, setExtItemQty] = useState(1);
-    const [extItemPrice, setExtItemPrice] = useState('');
-    const [extItemCostPrice, setExtItemCostPrice] = useState('');
+    const [extItems, setExtItems] = useState<ExtReceiptItem[]>([createEmptyExtItem()]);
     const [extPaymentMethod, setExtPaymentMethod] = useState<'Cash' | 'Bank' | 'POS' | 'Debt'>('Cash');
     const [extDueDate, setExtDueDate] = useState(() => {
         const d = new Date();
         d.setDate(d.getDate() + 7);
         return d.toISOString().split('T')[0];
     });
-    const [extVendorNote, setExtVendorNote] = useState('');
     const [extError, setExtError] = useState('');
+
+    const handleAddExtItem = () => {
+        setExtItems(prev => [
+            ...prev,
+            createEmptyExtItem()
+        ]);
+    };
+
+    const handleRemoveExtItem = (id: string) => {
+        if (extItems.length <= 1) return;
+        setExtItems(prev => prev.filter(item => item.id !== id));
+    };
+
+    const handleUpdateExtItem = (id: string, field: keyof ExtReceiptItem, val: any) => {
+        setExtItems(prev => prev.map(item => item.id === id ? { ...item, [field]: val } : item));
+    };
 
     // Modal Buyer In-place Edit state
     const [modalBuyerName, setModalBuyerName] = useState('');
@@ -278,6 +320,7 @@ export const SellView: React.FC = () => {
 
     const handleCreateExternalReceipt = (e: React.FormEvent) => {
         e.preventDefault();
+        setExtError('');
         if (!extBuyerName.trim()) {
             setExtError('Buyer Name is required for this receipt.');
             return;
@@ -286,18 +329,42 @@ export const SellView: React.FC = () => {
             setExtError('Valid Buyer Phone Number is required to share via WhatsApp.');
             return;
         }
-        if (!extItemName.trim()) {
-            setExtError('Product / Item description is required.');
-            return;
+
+        // Validate all products
+        for (let i = 0; i < extItems.length; i++) {
+            const it = extItems[i];
+            const num = i + 1;
+            if (!it.name.trim()) {
+                setExtError(`Product #${num}: Item description is required.`);
+                return;
+            }
+            const priceNum = Number(it.price);
+            if (!priceNum || priceNum <= 0) {
+                setExtError(`Product #${num}: Valid selling price is required.`);
+                return;
+            }
         }
-        const priceNum = Number(extItemPrice);
-        if (!priceNum || priceNum <= 0) {
-            setExtError('Valid selling price is required.');
-            return;
-        }
-        const qtyNum = Math.max(1, Number(extItemQty) || 1);
-        const costNum = Number(extItemCostPrice) || 0;
-        const total = priceNum * qtyNum;
+
+        const saleItems: SaleItem[] = extItems.map((it, idx) => {
+            const qtyNum = Math.max(1, Number(it.qty) || 1);
+            const priceNum = Number(it.price) || 0;
+            const costNum = Number(it.costPrice) || 0;
+            const cat = resolveCategoryFromDb(it.category);
+            const displayName = cat && cat !== 'General' && !it.name.toLowerCase().includes(cat.toLowerCase())
+                ? `${it.name.trim()} (${cat})`
+                : it.name.trim();
+
+            return {
+                productId: `ext-${Date.now()}-${idx}`,
+                name: displayName,
+                qty: qtyNum,
+                price: priceNum,
+                buyPrice: costNum,
+                paidTo: (it.paidTo || '').trim() || undefined
+            };
+        });
+
+        const total = saleItems.reduce((sum, it) => sum + (it.price * it.qty), 0);
 
         try {
             const sale = Store.addSale({
@@ -306,13 +373,7 @@ export const SellView: React.FC = () => {
                 customerAddress: extBuyerAddress.trim(),
                 paymentMethod: extPaymentMethod,
                 dueDate: extPaymentMethod === 'Debt' ? extDueDate : undefined,
-                items: [{
-                    productId: `ext-${Date.now()}`,
-                    name: extItemName.trim() + (extVendorNote.trim() ? ` [${extVendorNote.trim()}]` : ''),
-                    qty: qtyNum,
-                    price: priceNum,
-                    buyPrice: costNum
-                }],
+                items: saleItems,
                 subtotal: total,
                 vat: 0,
                 total: total
@@ -322,11 +383,7 @@ export const SellView: React.FC = () => {
             setExtBuyerName('');
             setExtBuyerPhone('');
             setExtBuyerAddress('');
-            setExtItemName('');
-            setExtItemQty(1);
-            setExtItemPrice('');
-            setExtItemCostPrice('');
-            setExtVendorNote('');
+            setExtItems([createEmptyExtItem()]);
             setExtError('');
             setShowExtReceiptModal(false);
 
@@ -1484,13 +1541,8 @@ export const SellView: React.FC = () => {
                                 >
                                     <Receipt size={20} />
                                 </div>
-                                <div>
-                                    <div style={{ fontSize: '15px', fontWeight: 800, color: '#0F172A' }}>
-                                        Generate External Receipt
-                                    </div>
-                                    <div style={{ fontSize: '11.5px', color: '#64748B' }}>
-                                        Record sale for product not in your store inventory
-                                    </div>
+                                <div style={{ fontSize: '15px', fontWeight: 800, color: '#0F172A' }}>
+                                    External Receipt
                                 </div>
                             </div>
                             <button
@@ -1503,30 +1555,36 @@ export const SellView: React.FC = () => {
                             </button>
                         </div>
 
+                        {/* Datalist for existing database categories */}
+                        <datalist id="db-categories">
+                            {Array.from(new Set(Store.getProducts().map(p => p.category?.trim()).filter(Boolean))).map(cat => (
+                                <option key={cat} value={cat} />
+                            ))}
+                        </datalist>
+
                         {/* Form */}
-                        <form onSubmit={handleCreateExternalReceipt} style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                        <form onSubmit={handleCreateExternalReceipt} style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                             {extError && (
-                                <div style={{ padding: '10px 14px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '10px', color: '#DC2626', fontSize: '12.5px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <AlertCircle size={16} />
+                                <div style={{ padding: '9px 12px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '10px', color: '#DC2626', fontSize: '12.5px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <AlertCircle size={15} />
                                     <span>{extError}</span>
                                 </div>
                             )}
 
-                            {/* Section 1: Required Buyer Details */}
-                            <div style={{ background: '#F8FAFC', padding: '12px 14px', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
-                                <div style={{ fontSize: '11px', fontWeight: 800, color: '#0F172A', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    <User size={13} color="#059669" />
-                                    <span>Buyer Details (Required for Receipt)</span>
+                            {/* Section 1: Buyer Details */}
+                            <div style={{ background: '#FFFFFF', padding: '12px', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
+                                <div style={{ fontSize: '12px', fontWeight: 800, color: '#0F172A', marginBottom: '8px' }}>
+                                    Buyer Details
                                 </div>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
                                     <div>
                                         <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
-                                            Buyer Full Name <span style={{ color: '#DC2626' }}>*</span>
+                                            Buyer Name *
                                         </label>
                                         <input
                                             type="text"
                                             required
-                                            placeholder="e.g. Alhaji Mustapha"
+                                            placeholder="Alhaji Mustapha"
                                             value={extBuyerName}
                                             onChange={(e) => setExtBuyerName(e.target.value)}
                                             style={{ width: '100%', padding: '9px 10px', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '13px', background: '#FFFFFF', color: '#0F172A', boxSizing: 'border-box' }}
@@ -1534,7 +1592,7 @@ export const SellView: React.FC = () => {
                                     </div>
                                     <div>
                                         <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
-                                            WhatsApp Phone <span style={{ color: '#DC2626' }}>*</span>
+                                            Phone *
                                         </label>
                                         <input
                                             type="tel"
@@ -1548,11 +1606,11 @@ export const SellView: React.FC = () => {
                                 </div>
                                 <div>
                                     <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
-                                        Delivery / Stall Address <span style={{ color: '#94A3B8' }}>(optional)</span>
+                                        Address
                                     </label>
                                     <input
                                         type="text"
-                                        placeholder="e.g. Shop 4B Kantin Kwari Market"
+                                        placeholder="Shop / Stall Address"
                                         value={extBuyerAddress}
                                         onChange={(e) => setExtBuyerAddress(e.target.value)}
                                         style={{ width: '100%', padding: '9px 10px', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '13px', background: '#FFFFFF', color: '#0F172A', boxSizing: 'border-box' }}
@@ -1560,135 +1618,242 @@ export const SellView: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* Section 2: External Item Details */}
-                            <div style={{ background: '#F8FAFC', padding: '12px 14px', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
-                                <div style={{ fontSize: '11px', fontWeight: 800, color: '#0F172A', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    <Package size={13} color="#059669" />
-                                    <span>Product & Pricing</span>
+                            {/* Section 2: Products */}
+                            <div style={{ background: '#FFFFFF', padding: '12px', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
+                                <div style={{ fontSize: '12px', fontWeight: 800, color: '#0F172A', marginBottom: '10px' }}>
+                                    Products ({extItems.length})
                                 </div>
-                                <div style={{ marginBottom: '8px' }}>
-                                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
-                                        Item Description <span style={{ color: '#DC2626' }}>*</span>
-                                    </label>
-                                    <input
-                                        type="text"
-                                        required
-                                        placeholder="e.g. White Guinea Brocade (10 yards)"
-                                        value={extItemName}
-                                        onChange={(e) => setExtItemName(e.target.value)}
-                                        style={{ width: '100%', padding: '9px 10px', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '13px', background: '#FFFFFF', color: '#0F172A', boxSizing: 'border-box' }}
-                                    />
+
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                    {extItems.map((item, index) => {
+                                        const lineTotal = (Number(item.price) || 0) * (Math.max(1, Number(item.qty) || 1));
+                                        return (
+                                            <div
+                                                key={item.id}
+                                                style={{
+                                                    background: '#F8FAFC',
+                                                    padding: '12px',
+                                                    borderRadius: '10px',
+                                                    border: '1px solid #E2E8F0'
+                                                }}
+                                            >
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#475569' }}>
+                                                        Product #{index + 1}
+                                                    </span>
+                                                    {extItems.length > 1 && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleRemoveExtItem(item.id)}
+                                                            style={{
+                                                                background: 'transparent',
+                                                                border: 'none',
+                                                                color: '#DC2626',
+                                                                cursor: 'pointer',
+                                                                padding: '2px 4px',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: '3px',
+                                                                fontSize: '11px',
+                                                                fontWeight: 700
+                                                            }}
+                                                            title="Remove product"
+                                                        >
+                                                            <Trash2 size={13} /> Remove
+                                                        </button>
+                                                    )}
+                                                </div>
+
+                                                {/* Category & Description */}
+                                                <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px', marginBottom: '8px' }}>
+                                                    <div>
+                                                        <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
+                                                            Category
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            list="db-categories"
+                                                            placeholder="e.g. Lace"
+                                                            value={item.category}
+                                                            onChange={(e) => handleUpdateExtItem(item.id, 'category', e.target.value)}
+                                                            style={{ width: '100%', padding: '9px 10px', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '13px', background: '#FFFFFF', color: '#0F172A', boxSizing: 'border-box' }}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
+                                                            Description *
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            required
+                                                            placeholder="Item name"
+                                                            value={item.name}
+                                                            onChange={(e) => handleUpdateExtItem(item.id, 'name', e.target.value)}
+                                                            style={{ width: '100%', padding: '9px 10px', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '13px', background: '#FFFFFF', color: '#0F172A', boxSizing: 'border-box' }}
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                {/* Qty & Sell Price */}
+                                                <div style={{ display: 'grid', gridTemplateColumns: '70px 1fr', gap: '8px', marginBottom: '8px' }}>
+                                                    <div>
+                                                        <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
+                                                            Qty *
+                                                        </label>
+                                                        <input
+                                                            type="number"
+                                                            min={1}
+                                                            required
+                                                            value={item.qty}
+                                                            onChange={(e) => handleUpdateExtItem(item.id, 'qty', Math.max(1, Number(e.target.value) || 1))}
+                                                            style={{ width: '100%', padding: '9px 6px', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '13px', background: '#FFFFFF', color: '#0F172A', boxSizing: 'border-box', textAlign: 'center' }}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
+                                                            Sell Price (₦) *
+                                                        </label>
+                                                        <input
+                                                            type="number"
+                                                            required
+                                                            min={1}
+                                                            placeholder="0.00"
+                                                            value={item.price}
+                                                            onChange={(e) => handleUpdateExtItem(item.id, 'price', e.target.value)}
+                                                            style={{ width: '100%', padding: '9px 10px', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '13px', background: '#FFFFFF', color: '#0F172A', fontWeight: 700, boxSizing: 'border-box' }}
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                {/* Distinct & Separated Cost Price and Paid to Inputs */}
+                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                                    <div>
+                                                        <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
+                                                            Cost Price (₦)
+                                                        </label>
+                                                        <input
+                                                            type="number"
+                                                            placeholder="0.00"
+                                                            value={item.costPrice}
+                                                            onChange={(e) => handleUpdateExtItem(item.id, 'costPrice', e.target.value)}
+                                                            style={{ width: '100%', padding: '9px 10px', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '13px', background: '#FFFFFF', color: '#0F172A', boxSizing: 'border-box' }}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
+                                                            Paid to
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Vendor / Owner"
+                                                            value={item.paidTo}
+                                                            onChange={(e) => handleUpdateExtItem(item.id, 'paidTo', e.target.value)}
+                                                            style={{ width: '100%', padding: '9px 10px', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '13px', background: '#FFFFFF', color: '#0F172A', boxSizing: 'border-box' }}
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                {lineTotal > 0 && (
+                                                    <div style={{ textAlign: 'right', fontSize: '11px', color: '#64748B', marginTop: '6px', fontWeight: 600 }}>
+                                                        Line Total: <strong style={{ color: '#0F172A' }}>₦{lineTotal.toLocaleString()}</strong>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
                                 </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
-                                    <div>
-                                        <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
-                                            Quantity <span style={{ color: '#DC2626' }}>*</span>
-                                        </label>
-                                        <input
-                                            type="number"
-                                            min={1}
-                                            required
-                                            value={extItemQty}
-                                            onChange={(e) => setExtItemQty(Math.max(1, Number(e.target.value) || 1))}
-                                            style={{ width: '100%', padding: '9px 10px', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '13px', background: '#FFFFFF', color: '#0F172A', boxSizing: 'border-box' }}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
-                                            Sell Price (₦) <span style={{ color: '#DC2626' }}>*</span>
-                                        </label>
-                                        <input
-                                            type="number"
-                                            required
-                                            min={1}
-                                            placeholder="e.g. 15000"
-                                            value={extItemPrice}
-                                            onChange={(e) => setExtItemPrice(e.target.value)}
-                                            style={{ width: '100%', padding: '9px 10px', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '13px', background: '#FFFFFF', color: '#0F172A', fontWeight: 700, boxSizing: 'border-box' }}
-                                        />
-                                    </div>
-                                </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                                    <div>
-                                        <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
-                                            Cost Price (₦) <span style={{ color: '#94A3B8' }}>(optional)</span>
-                                        </label>
-                                        <input
-                                            type="number"
-                                            placeholder="Paid to owner"
-                                            value={extItemCostPrice}
-                                            onChange={(e) => setExtItemCostPrice(e.target.value)}
-                                            style={{ width: '100%', padding: '9px 10px', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '13px', background: '#FFFFFF', color: '#0F172A', boxSizing: 'border-box' }}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
-                                            Vendor Note <span style={{ color: '#94A3B8' }}>(optional)</span>
-                                        </label>
-                                        <input
-                                            type="text"
-                                            placeholder="e.g. Alhaji Sani Stall 4"
-                                            value={extVendorNote}
-                                            onChange={(e) => setExtVendorNote(e.target.value)}
-                                            style={{ width: '100%', padding: '9px 10px', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '13px', background: '#FFFFFF', color: '#0F172A', boxSizing: 'border-box' }}
-                                        />
-                                    </div>
-                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={handleAddExtItem}
+                                    style={{
+                                        marginTop: '10px',
+                                        width: '100%',
+                                        padding: '10px',
+                                        borderRadius: '8px',
+                                        border: '1px solid #CBD5E1',
+                                        background: '#FFFFFF',
+                                        color: '#0F172A',
+                                        fontSize: '12.5px',
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '6px'
+                                    }}
+                                >
+                                    <Plus size={14} /> Add Product
+                                </button>
                             </div>
 
-                            {/* Section 3: Payment Method */}
+                            {/* Section 3: Payment Method with Standard Recognizable Icons */}
                             <div>
-                                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>
                                     Payment Method
                                 </label>
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
-                                    {(['Cash', 'Bank', 'POS', 'Debt'] as const).map((method) => (
-                                        <button
-                                            key={method}
-                                            type="button"
-                                            onClick={() => setExtPaymentMethod(method)}
-                                            style={{
-                                                padding: '10px 0',
-                                                borderRadius: '10px',
-                                                border: 'none',
-                                                background: extPaymentMethod === method ? '#0F172A' : '#F1F5F9',
-                                                color: extPaymentMethod === method ? '#FFFFFF' : '#475569',
-                                                fontSize: '12px',
-                                                fontWeight: 700,
-                                                cursor: 'pointer'
-                                            }}
-                                        >
-                                            {method === 'Debt' ? 'Credit' : method}
-                                        </button>
-                                    ))}
+                                    {[
+                                        { key: 'Cash' as const, label: 'Cash', icon: Banknote },
+                                        { key: 'Bank' as const, label: 'Bank Transfer', icon: Landmark },
+                                        { key: 'POS' as const, label: 'POS Terminal', icon: CreditCard },
+                                        { key: 'Debt' as const, label: 'Credit', icon: Clock }
+                                    ].map(({ key, label, icon: Icon }) => {
+                                        const isSelected = extPaymentMethod === key;
+                                        return (
+                                            <button
+                                                key={key}
+                                                type="button"
+                                                title={label}
+                                                aria-label={label}
+                                                onClick={() => setExtPaymentMethod(key)}
+                                                style={{
+                                                    padding: '12px 0',
+                                                    borderRadius: '10px',
+                                                    border: 'none',
+                                                    background: isSelected ? (key === 'Debt' ? '#B45309' : '#0F172A') : '#F1F5F9',
+                                                    color: isSelected ? '#FFFFFF' : '#64748B',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    cursor: 'pointer',
+                                                    transition: 'all 0.15s ease'
+                                                }}
+                                            >
+                                                <Icon size={20} />
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             </div>
 
                             {extPaymentMethod === 'Debt' && (
                                 <div>
                                     <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#B45309', marginBottom: '4px' }}>
-                                        Repayment Due Date
+                                        Due Date
                                     </label>
                                     <input
                                         type="date"
                                         required
                                         value={extDueDate}
                                         onChange={(e) => setExtDueDate(e.target.value)}
-                                        style={{ width: '100%', padding: '9px 10px', border: '1.5px solid #FDE68A', borderRadius: '8px', fontSize: '13px', background: '#FFFBEB', color: '#92400E', boxSizing: 'border-box' }}
+                                        style={{ width: '100%', padding: '9px 10px', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '13px', background: '#FFFFFF', color: '#0F172A', boxSizing: 'border-box' }}
                                     />
                                 </div>
                             )}
 
                             {/* Summary bar */}
-                            <div style={{ padding: '10px 14px', background: '#F1F5F9', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <span style={{ fontSize: '12px', fontWeight: 700, color: '#475569' }}>Total Receipt Amount</span>
-                                <span style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A' }}>
-                                    ₦{((Number(extItemPrice) || 0) * (Number(extItemQty) || 1)).toLocaleString()}
+                            <div style={{ padding: '10px 14px', background: '#F8FAFC', borderRadius: '10px', border: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontSize: '12px', fontWeight: 700, color: '#475569' }}>
+                                    Total ({extItems.length} {extItems.length === 1 ? 'item' : 'items'})
+                                </span>
+                                <span style={{ fontSize: '17px', fontWeight: 800, color: '#0F172A' }}>
+                                    ₦{extItems.reduce((sum, it) => sum + ((Number(it.price) || 0) * (Math.max(1, Number(it.qty) || 1))), 0).toLocaleString()}
                                 </span>
                             </div>
 
                             {/* Submit & Cancel Buttons */}
-                            <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                            <div style={{ display: 'flex', gap: '8px', marginTop: '2px' }}>
                                 <button
                                     type="button"
                                     onClick={() => setShowExtReceiptModal(false)}
@@ -1698,10 +1863,10 @@ export const SellView: React.FC = () => {
                                 </button>
                                 <button
                                     type="submit"
-                                    style={{ flex: 2, padding: '12px', borderRadius: '10px', border: 'none', background: '#047857', color: '#FFFFFF', fontSize: '13.5px', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', boxShadow: '0 4px 12px rgba(4, 120, 87, 0.28)' }}
+                                    style={{ flex: 2, padding: '12px', borderRadius: '10px', border: 'none', background: '#0F172A', color: '#FFFFFF', fontSize: '13.5px', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
                                 >
                                     <Receipt size={17} />
-                                    <span>Generate & Record Receipt</span>
+                                    <span>Generate Receipt</span>
                                 </button>
                             </div>
                         </form>

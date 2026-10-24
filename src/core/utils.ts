@@ -230,16 +230,10 @@ export const Utils = {
 
                 <!-- Main Receipt Body -->
                 <div class="ticket-paper-content" style="background:#FFFFFF;padding:16px 20px 18px;font-family:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif;color:#0F172A;border-left:1px solid #E2E8F0;border-right:1px solid #E2E8F0;">
-                    <!-- Top Meta Bar -->
-                    <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#94A3B8;font-weight:600;">
-                        <span style="font-family:'JetBrains Mono',monospace;letter-spacing:0.02em;">Order: #${String(sale.id).replace(/^SALE-/, '')}</span>
-                        <span>${formattedDate} · ${formattedTime}</span>
-                    </div>
-
-                    <!-- Brand / Logo Section -->
-                    <div style="text-align:center;margin-top:14px;margin-bottom:14px;">
-                        <div style="width:56px;height:56px;margin:0 auto 8px;border-radius:50%;overflow:hidden;border:2px solid #F1F5F9;box-shadow:0 4px 10px rgba(0,0,0,0.06);">
-                            <img src="${logoUrl}" alt="Royalvazier Textile" style="width:100%;height:100%;object-fit:cover;" onerror="this.src='/logo.png';" />
+                    <!-- Brand / Logo Section — FIRST to be discovered at the beginning of the receipt -->
+                    <div style="text-align:center;margin-top:2px;margin-bottom:14px;">
+                        <div style="width:100px;height:100px;margin:0 auto 10px;border-radius:18px;overflow:hidden;border:2px solid #F1F5F9;box-shadow:0 4px 14px rgba(0,0,0,0.12);background:#000000;">
+                            <img src="${logoUrl || '/logo.png'}" alt="${storeName}" style="width:100%;height:100%;object-fit:contain;display:block;" onerror="this.src='/logo.png';" />
                         </div>
                         <div style="font-size:16px;font-weight:800;color:#0F172A;letter-spacing:-0.01em;line-height:1.2;">
                             ${storeName}
@@ -249,6 +243,9 @@ export const Utils = {
                         </div>
                         <div style="font-size:11px;color:#64748B;margin-top:2px;">
                             Kantin Kwari Market, Kano
+                        </div>
+                        <div style="font-size:11px;color:#94A3B8;font-weight:600;margin-top:4px;">
+                            ${formattedDate} · ${formattedTime}
                         </div>
 
                         <div style="margin-top:12px;font-size:18px;font-weight:800;color:#0F172A;letter-spacing:-0.02em;">
@@ -635,9 +632,17 @@ body {
                     img.crossOrigin = 'anonymous';
                     let settled = false;
                     img.onload = () => { if (!settled) { settled = true; res(img); } };
-                    img.onerror = () => { if (!settled) { settled = true; res(null); } };
-                    img.src = settings?.businessLogo || '/royalvazier-logo.png';
-                    setTimeout(() => { if (!settled) { settled = true; res(null); } }, 400);
+                    img.onerror = () => {
+                        if (!img.src.includes('logo.png')) {
+                            img.src = '/logo.png';
+                        } else if (!img.src.includes('royalvazier-logo.png')) {
+                            img.src = '/royalvazier-logo.png';
+                        } else {
+                            if (!settled) { settled = true; res(null); }
+                        }
+                    };
+                    img.src = settings?.businessLogo || '/logo.png';
+                    setTimeout(() => { if (!settled) { settled = true; res(img.complete ? img : null); } }, 2000);
                 });
 
                 const canvas = document.createElement('canvas');
@@ -652,7 +657,7 @@ body {
                 // Calculate dynamic Buyer Details Card height
                 const buyerLinesCount = 1 + (sale.customerPhone ? 1 : 0) + (sale.customerAddress ? 1 : 0) + (isDebt ? 1 : 0);
                 const custBoxH = 34 + buyerLinesCount * 20 + 8;
-                const headerHeight = 220 + custBoxH;
+                const headerHeight = 250 + custBoxH;
                 const itemsHeight = Math.max(1, items.length) * 44;
                 const totalsHeight = 175;
                 const footerHeight = 155;
@@ -681,34 +686,35 @@ body {
                 ctx.fillStyle = '#C9A227';
                 ctx.fillRect(12, 12, width - 24, 4);
 
-                // Top Meta Bar
-                ctx.fillStyle = '#94A3B8';
-                ctx.font = '600 11px system-ui, -apple-system, sans-serif';
-                ctx.fillText(`ORDER #${String(sale.id).replace(/^SALE-/, '')}`, 24, 38);
-                const dateObj = sale.date ? new Date(sale.date) : new Date();
-                const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' · ' + dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-                ctx.textAlign = 'right';
-                ctx.fillText(dateStr, width - 24, 38);
-                ctx.textAlign = 'left';
-
-                // Logo / Brand Icon
-                const logoY = 56;
-                const logoSize = 56;
+                // Logo / Brand Icon — FIRST to be discovered at the beginning of receipt (enlarged)
+                const logoY = 28;
+                const logoSize = 100;
                 const logoX = (width - logoSize) / 2;
 
                 if (logoImg) {
                     ctx.save();
+                    const radius = 18;
                     ctx.beginPath();
-                    ctx.arc(width / 2, logoY + logoSize / 2, logoSize / 2, 0, Math.PI * 2);
+                    if ((ctx as any).roundRect) {
+                        (ctx as any).roundRect(logoX, logoY, logoSize, logoSize, radius);
+                    } else {
+                        ctx.rect(logoX, logoY, logoSize, logoSize);
+                    }
                     ctx.closePath();
                     ctx.clip();
+                    ctx.fillStyle = '#000000';
+                    ctx.fillRect(logoX, logoY, logoSize, logoSize);
                     ctx.drawImage(logoImg, logoX, logoY, logoSize, logoSize);
                     ctx.restore();
                     // Gold ring around logo
                     ctx.strokeStyle = '#C9A227';
                     ctx.lineWidth = 2;
                     ctx.beginPath();
-                    ctx.arc(width / 2, logoY + logoSize / 2, logoSize / 2 + 1, 0, Math.PI * 2);
+                    if ((ctx as any).roundRect) {
+                        (ctx as any).roundRect(logoX, logoY, logoSize, logoSize, radius);
+                    } else {
+                        ctx.rect(logoX, logoY, logoSize, logoSize);
+                    }
                     ctx.stroke();
                 } else {
                     // Fallback Royal Gold Seal
@@ -720,9 +726,9 @@ body {
                     ctx.lineWidth = 2;
                     ctx.stroke();
                     ctx.fillStyle = '#8C6A1A';
-                    ctx.font = '800 18px serif';
+                    ctx.font = '800 24px serif';
                     ctx.textAlign = 'center';
-                    ctx.fillText('RV', width / 2, logoY + logoSize / 2 + 6);
+                    ctx.fillText('RV', width / 2, logoY + logoSize / 2 + 8);
                 }
 
                 // Brand Titles
@@ -740,13 +746,19 @@ body {
                 ctx.font = '500 11px system-ui, -apple-system, sans-serif';
                 ctx.fillText('No:15 Gidan Baba Dan Baffa, Kantin Kwari market, Kano', width / 2, logoY + logoSize + 51);
 
+                const dateObj = sale.date ? new Date(sale.date) : new Date();
+                const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' · ' + dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                ctx.fillStyle = '#94A3B8';
+                ctx.font = '600 11px system-ui, -apple-system, sans-serif';
+                ctx.fillText(dateStr, width / 2, logoY + logoSize + 66);
+
                 // Receipt Title Banner
                 ctx.fillStyle = isDebt ? '#B45309' : '#047857';
                 ctx.font = '800 14px system-ui, -apple-system, sans-serif';
-                ctx.fillText(sale.isSettlement ? 'DEBT SETTLEMENT RECEIPT' : isDebt ? 'CREDIT SALE ISSUED' : 'OFFICIAL SALES RECEIPT', width / 2, logoY + logoSize + 76);
+                ctx.fillText(sale.isSettlement ? 'DEBT SETTLEMENT RECEIPT' : isDebt ? 'CREDIT SALE ISSUED' : 'OFFICIAL SALES RECEIPT', width / 2, logoY + logoSize + 90);
 
                 // BUYER DETAILS Card
-                const custBoxY = logoY + logoSize + 92;
+                const custBoxY = logoY + logoSize + 104;
                 ctx.textAlign = 'left';
                 ctx.fillStyle = '#F8FAFC';
                 ctx.beginPath();
@@ -1025,14 +1037,12 @@ body {
 
         const blob = await Utils.generateReceiptImageBlob(sale, settings);
 
-        // 1. Mobile Native Web Share API: share file as IMAGE directly to WhatsApp without opening browser tabs
+        // 1. Mobile Native Web Share API: share file as IMAGE ONLY directly to WhatsApp (no text follow-up note)
         if (blob && typeof navigator !== 'undefined' && navigator.share && navigator.canShare) {
             try {
                 const file = new File([blob], `Receipt_${sale.id}.png`, { type: 'image/png' });
                 if (navigator.canShare({ files: [file] })) {
                     await navigator.share({
-                        title: `${storeName} Receipt #${sale.id}`,
-                        text: whatsappMsg,
                         files: [file]
                     });
                     return { success: true, message: '✓ Receipt image shared directly to WhatsApp!' };
@@ -1058,11 +1068,10 @@ body {
             }
         }
 
-        // 3. Open WhatsApp directly with prefilled receipt text and buyer details (NEVER trigger a browser file download)
-        const encodedText = encodeURIComponent(whatsappMsg);
+        // 3. Open WhatsApp directly - ONLY image, NO follow up text note
         const targetUrl = cleanPhone
-            ? `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodedText}`
-            : `https://api.whatsapp.com/send?text=${encodedText}`;
+            ? `https://api.whatsapp.com/send?phone=${cleanPhone}`
+            : `https://api.whatsapp.com/send`;
 
         window.open(targetUrl, '_blank', 'noopener,noreferrer');
 
@@ -1070,7 +1079,7 @@ body {
             success: true,
             message: copied
                 ? '📸 Receipt image copied to clipboard! In WhatsApp, press Ctrl+V (Paste) to send.'
-                : '✓ Opening WhatsApp with receipt and buyer details.'
+                : '✓ Opening WhatsApp for receipt image.'
         };
     },
 

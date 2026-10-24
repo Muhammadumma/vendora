@@ -87,25 +87,20 @@ export const ReceiptTicket: React.FC<ReceiptTicketProps> = ({
                     borderRight: '1px solid #E2E8F0'
                 }}
             >
-                {/* Top Meta Bar */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>
-                    <span style={{ fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.02em' }}>
-                        Order: #{sale.id.replace(/^SALE-/, '')}
-                    </span>
-                    <span>
-                        {formattedDate} · {formattedTime}
-                    </span>
-                </div>
-
-                {/* Brand / Logo Section */}
-                <div style={{ textAlign: 'center', marginTop: '14px', marginBottom: '14px' }}>
-                    <div style={{ width: '56px', height: '56px', margin: '0 auto 8px', borderRadius: '50%', overflow: 'hidden', border: '2px solid #F1F5F9', boxShadow: '0 4px 10px rgba(0,0,0,0.06)' }}>
+                {/* Brand / Logo Section — FIRST to be discovered at the beginning of the receipt */}
+                <div style={{ textAlign: 'center', marginTop: '2px', marginBottom: '14px' }}>
+                    <div style={{ width: '100px', height: '100px', margin: '0 auto 10px', borderRadius: '18px', overflow: 'hidden', border: '2px solid #F1F5F9', boxShadow: '0 4px 14px rgba(0,0,0,0.12)', background: '#000000' }}>
                         <img
-                            src={storeSettings.businessLogo || '/royalvazier-logo.png'}
-                            alt="Royalvazier Textile"
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            src={(storeSettings.businessLogo && storeSettings.businessLogo.trim()) ? storeSettings.businessLogo : '/logo.png'}
+                            alt={storeSettings.businessName || 'Royalvazier Textile'}
+                            style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
                             onError={(e) => {
-                                (e.currentTarget as HTMLImageElement).src = '/logo.png';
+                                const target = e.currentTarget as HTMLImageElement;
+                                if (!target.src.includes('royalvazier-logo.png')) {
+                                    target.src = '/royalvazier-logo.png';
+                                } else if (!target.src.includes('logo.png')) {
+                                    target.src = '/logo.png';
+                                }
                             }}
                         />
                     </div>
@@ -117,6 +112,9 @@ export const ReceiptTicket: React.FC<ReceiptTicketProps> = ({
                     </div>
                     <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
                         Kantin Kwari Market, Kano
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600, marginTop: '4px' }}>
+                        {formattedDate} · {formattedTime}
                     </div>
 
                     <div style={{ marginTop: '12px', fontSize: '18px', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em' }}>

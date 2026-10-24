@@ -35,6 +35,7 @@ export interface SaleItem {
     qty: number;
     price: number;
     buyPrice?: number;
+    paidTo?: string;
 }
 
 export interface Sale {
